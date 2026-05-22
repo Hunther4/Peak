@@ -15,11 +15,13 @@ import Spotlight from "./components/Spotlight"
 import { ToastProvider } from "./components/ui"
 import WelcomeScreen from './components/WelcomeScreen'
 import MemoryGame from './components/MemoryGame'
+import MathThinkingGame from './components/MathThinkingGame'
 
 function App() {
   const { summary, loading, error, clearError, fetchSkills, fetchSummary, fetchTimeline, fetchMentalReps, fetchChallenges, fetchBooksStatus, fetchAiStatus, profile, profileLoading, fetchProfile } = useStore()
   const [mounted, setMounted] = useState(false)
   const [showMemoryGame, setShowMemoryGame] = useState(false)
+  const [showMathThinking, setShowMathThinking] = useState(false)
   const [activeSkillId, setActiveSkillId] = useState(null)
 
   useEffect(() => {
@@ -68,6 +70,19 @@ function App() {
     fetchTimeline()
   }, [fetchSummary, fetchTimeline])
 
+  // Math thinking navigation
+  const handleMathThinkingStart = useCallback((skillId) => {
+    setActiveSkillId(skillId)
+    setShowMathThinking(true)
+  }, [])
+
+  const handleMathThinkingClose = useCallback(() => {
+    setShowMathThinking(false)
+    setActiveSkillId(null)
+    fetchSummary()
+    fetchTimeline()
+  }, [fetchSummary, fetchTimeline])
+
   // Profile guard — show spinner while loading, welcome if no profile
   if (profileLoading) {
     return (
@@ -83,6 +98,10 @@ function App() {
 
   if (showMemoryGame) {
     return <MemoryGame skillId={activeSkillId} onClose={handleMemoryGameClose} />
+  }
+
+  if (showMathThinking) {
+    return <MathThinkingGame skillId={activeSkillId} onClose={handleMathThinkingClose} />
   }
 
   return (
@@ -146,15 +165,8 @@ function App() {
             </div>
           )}
 
-          {/* Session Form - Full Width */}
-          <section className="mb-10">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-9 h-9 rounded-xl bg-green-500/10 border border-green-500/20 flex items-center justify-center text-lg">
-                ⚡
-              </div>
-              <h2 className="text-lg font-bold text-white">Nueva Sesión</h2>
-              <div className="flex-1 h-px bg-gradient-to-r from-white/[0.06] to-transparent ml-4" />
-            </div>
+          {/* Session Form */}
+          <section className="mb-8">
             <SessionForm />
           </section>
 
@@ -187,7 +199,7 @@ function App() {
                 ) : (
                   <div className="space-y-4 stagger">
                     {summary?.skills?.map((s) => (
-                      <SkillCard key={s.skill.id} summary={s} onSkillClick={handleMemoryGameStart} />
+                      <SkillCard key={s.skill.id} summary={s} onSkillClick={handleMemoryGameStart} onMathClick={handleMathThinkingStart} />
                     ))}
                   </div>
                 )}

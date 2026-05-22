@@ -184,6 +184,21 @@ export const api = {
     getState: (sessionId) => request(`/memory-game/sessions/${sessionId}/state`),
     getHistory: (sessionId) => request(`/memory-game/sessions/${sessionId}/history`),
   },
+
+  mathThinking: {
+    createSession: (skillId) => request(`/math-thinking/sessions?skill_id=${skillId}`, { method: "POST" }),
+    createRound: (sessionId) =>
+      request(`/math-thinking/sessions/${sessionId}/rounds`, { method: "POST" }),
+    submitAttempt: (roundId, userAnswer) =>
+      request(`/math-thinking/rounds/${roundId}/attempts`, {
+        method: "POST",
+        body: JSON.stringify({ user_answer: userAnswer }),
+      }),
+    consolidate: (sessionId) =>
+      request(`/math-thinking/sessions/${sessionId}/consolidate`, { method: "POST" }),
+    getState: (sessionId) => request(`/math-thinking/sessions/${sessionId}/state`),
+    getHistory: (sessionId) => request(`/math-thinking/sessions/${sessionId}/history`),
+  },
 }
 
 export default api

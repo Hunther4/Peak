@@ -1,14 +1,17 @@
 import { useState, memo } from 'react';
 
-const SkillCard = memo(function SkillCard({ summary, onSkillClick }) {
+const SkillCard = memo(function SkillCard({ summary, onSkillClick, onMathClick }) {
   const { skill, total_sessions, sessions_this_week, streak_days, last_assessment } = summary;
   const [isHovered, setIsHovered] = useState(false);
 
   const isMemoryNumber = skill.skill_type === "memory_number";
+  const isMathThinking = skill.skill_type === "problem_set";
 
   const handleClick = () => {
     if (isMemoryNumber && onSkillClick) {
       onSkillClick(skill.id)
+    } else if (isMathThinking && onMathClick) {
+      onMathClick(skill.id)
     }
   }
 
@@ -19,13 +22,13 @@ const SkillCard = memo(function SkillCard({ summary, onSkillClick }) {
 
   return (
     <div
-      className={`card group relative overflow-hidden hover:border-green-500/30 transition-all duration-500 hover:-translate-y-2 ${isMemoryNumber ? "cursor-pointer" : ""}`}
+      className={`card group relative overflow-hidden hover:border-green-500/30 transition-all duration-500 hover:-translate-y-2 ${isMemoryNumber || isMathThinking ? "cursor-pointer" : ""}`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       onClick={handleClick}
-      role={isMemoryNumber ? "button" : undefined}
-      tabIndex={isMemoryNumber ? 0 : undefined}
-      onKeyDown={isMemoryNumber ? (e) => { if (e.key === "Enter" || e.key === " ") handleClick() } : undefined}
+      role={isMemoryNumber || isMathThinking ? "button" : undefined}
+      tabIndex={isMemoryNumber || isMathThinking ? 0 : undefined}
+      onKeyDown={isMemoryNumber || isMathThinking ? (e) => { if (e.key === "Enter" || e.key === " ") handleClick() } : undefined}
     >
       {/* Ambient glow layers */}
       <div className="absolute -right-16 -top-16 w-48 h-48 bg-green-500/[0.04] rounded-full blur-3xl group-hover:bg-green-500/[0.08] transition-all duration-700" style={{ animation: isHovered ? 'mesh-shift 10s ease-in-out infinite' : 'none' }} />

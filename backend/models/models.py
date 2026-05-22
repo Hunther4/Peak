@@ -173,3 +173,45 @@ class MemoryNumberAttempt(SQLModel, table=True):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     round: Optional[MemoryNumberRound] = Relationship(back_populates="attempts")
+
+
+class MathThinkingSession(SQLModel, table=True):
+    """Tracks one game session for Math Thinking."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    skill_id: int = Field(foreign_key="skill.id", ondelete="CASCADE", index=True)
+    level: int = Field(default=1, ge=1, le=10)
+    consecutive_correct: int = Field(default=0, ge=0)
+    consecutive_incorrect: int = Field(default=0, ge=0)
+    total_rounds: int = Field(default=0, ge=0)
+    is_active: bool = Field(default=True)
+    best_level: int = Field(default=1, ge=1, le=10)
+    consolidated_session_id: Optional[int] = Field(default=None, foreign_key="session.id", ondelete="SET NULL")
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    rounds: list["MathThinkingRound"] = Relationship(back_populates="session")
+
+
+class MathThinkingRound(SQLModel, table=True):
+    """A single problem in a Math Thinking session."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    session_id: int = Field(foreign_key="maththinkingsession.id", ondelete="CASCADE", index=True)
+    level: int
+    problem_text: str
+    correct_answer: float
+    solution_steps_json: Optional[str] = None  # JSON array of strings
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    session: Optional[MathThinkingSession] = Relationship(back_populates="rounds")
+    attempts: list["MathThinkingAttempt"] = Relationship(back_populates="round")
+
+
+class MathThinkingAttempt(SQLModel, table=True):
+    """A user's answer submission for a Math Thinking round."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    round_id: int = Field(foreign_key="maththinkinground.id", ondelete="CASCADE", index=True)
+    user_answer: float
+    correct: bool
+    solution_steps_json: Optional[str] = None  # JSON array of strings (returned on error)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    round: Optional[MathThinkingRound] = Relationship(back_populates="attempts")
