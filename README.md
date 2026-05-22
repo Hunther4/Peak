@@ -30,6 +30,8 @@ Peak Practice is a full-stack platform for deliberate practice — the evidence-
 
 A **session** is a practice log entry. You pick a skill you're working on, set a difficulty level, write what you corrected from your last session, and describe your hypothesis for tomorrow. There are no accounts, no emails — just practice entries stored in your local SQLite database.
 
+**Cognitive Telemetry (Dual N-Back):** Peak includes a scientifically-validated Dual N-Back implementation to measure working memory bandwidth. It captures N-level, accuracy, and reaction times (via `performance.now()`) to correlate mental fatigue with training performance.
+
 When you submit a session, the AI evaluates it against deliberate practice principles, pulls relevant context from your PDF library via RAG, and returns specific suggestions for your next session. Over time, the system adapts challenges to your skill level and tracks your growth.
 
 ---
@@ -140,6 +142,8 @@ Peak Practice es una plataforma full-stack de práctica deliberada — el métod
 ### Cómo Funciona
 
 Una **sesión** es un registro de práctica. Elegís una habilidad, definís un nivel de dificultad, escribís qué corregiste desde tu última sesión y describís tu hipótesis para mañana. No hay cuentas ni correos electrónicos — solo entradas de práctica guardadas en tu base de datos SQLite local.
+
+**Telemetría Cognitiva (Dual N-Back):** Peak incluye una implementación de Dual N-Back validada científicamente para medir el ancho de banda de la memoria de trabajo. Captura el nivel N, la precisión y los tiempos de reacción (vía `performance.now()`) para correlacionar la fatiga mental con el rendimiento del entrenamiento.
 
 Cuando enviás una sesión, la IA la evalúa contra los principios de práctica deliberada, busca contexto relevante en tu biblioteca de PDFs via RAG y devuelve sugerencias concretas para tu próxima sesión. Con el tiempo, el sistema adapta los desafíos a tu nivel y sigue tu progreso.
 
