@@ -28,13 +28,15 @@ export default function ProfileAvatar() {
   return (
     <>
       {/* Avatar button — far right corner */}
-      <button
-        onClick={() => setShowProfile(true)}
-        className="w-9 h-9 rounded-full bg-gradient-to-br from-green-400 to-emerald-600 flex items-center justify-center text-black font-bold text-sm shadow-lg shadow-green-500/20 hover:shadow-green-500/40 hover:scale-105 transition-all duration-300 shrink-0"
-        title={profile.name}
-      >
-        {initial}
-      </button>
+      <div className="flex items-center py-2.5">
+        <button
+          onClick={() => setShowProfile(true)}
+          className="w-9 h-9 rounded-full bg-gradient-to-br from-green-400 to-emerald-600 flex items-center justify-center text-black font-bold text-sm shadow-lg shadow-green-500/20 hover:shadow-green-500/40 hover:scale-105 transition-all duration-300 shrink-0"
+          title={profile.name}
+        >
+          {initial}
+        </button>
+      </div>
 
       {/* Profile modal — centered */}
       <Modal
