@@ -38,6 +38,10 @@ ensure_service() {
 
 echo -e "\033[0;32m🚀 Iniciando Peak Practice...\033[0m"
 
+# ── Seed ────────────────────────────────────────────────────
+echo "🌱 Sembrando datos..."
+"$BACKEND_DIR/venv/bin/python" seed.py
+
 # ── Backend ────────────────────────────────────────────────
 echo "📡 Levantando Backend en puerto 8000..."
 if ! ensure_service peak-backend; then

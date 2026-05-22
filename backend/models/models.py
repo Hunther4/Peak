@@ -124,3 +124,52 @@ class UserProfile(SQLModel, table=True):
     age: int = Field(ge=1, le=150)
     avatar_url: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class MemoryNumberSession(SQLModel, table=True):
+    """Tracks a single game session for the Memory Number skill."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    skill_id: int = Field(foreign_key="skill.id", ondelete="CASCADE", index=True)
+    phase: int = Field(default=1, ge=1, le=7)
+    current_span: int = Field(default=4, ge=4)
+    consecutive_correct: int = Field(default=0, ge=0)
+    consecutive_incorrect: int = Field(default=0, ge=0)
+    best_span: int = Field(default=4, ge=4)
+    best_phase: int = Field(default=1, ge=1, le=7)
+    total_rounds: int = Field(default=0, ge=0)
+    is_active: bool = Field(default=True)
+    consolidated_session_id: Optional[int] = Field(default=None, foreign_key="session.id", ondelete="SET NULL")
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    rounds: list["MemoryNumberRound"] = Relationship(back_populates="game_session")
+
+
+class MemoryNumberRound(SQLModel, table=True):
+    """A single round in a Memory Number game session — one sequence to recall."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    game_session_id: int = Field(foreign_key="memorynumbersession.id", ondelete="CASCADE", index=True)
+    phase: int = Field(ge=1, le=7)
+    span: int = Field(ge=4)
+    digit_max: int = Field(default=1, ge=1)
+    numbers_json: str  # JSON array of integers
+    sequence_length: int
+    ai_assisted: bool = Field(default=False)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    game_session: Optional[MemoryNumberSession] = Relationship(back_populates="rounds")
+    attempts: list["MemoryNumberAttempt"] = Relationship(back_populates="round")
+
+
+class MemoryNumberAttempt(SQLModel, table=True):
+    """A user's recall attempt for a given round."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    round_id: int = Field(foreign_key="memorynumberround.id", ondelete="CASCADE", index=True)
+    submitted_numbers_json: str  # JSON array of integers
+    correct: bool
+    correct_positions: int = Field(default=0, ge=0)
+    total_positions: int = Field(default=0, ge=0)
+    errors_json: Optional[str] = None  # JSON array of error objects
+    attempt_number: int = Field(default=1)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    round: Optional[MemoryNumberRound] = Relationship(back_populates="attempts")

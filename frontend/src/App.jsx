@@ -14,10 +14,13 @@ import AmbientParticles from "./components/AmbientParticles"
 import Spotlight from "./components/Spotlight"
 import { ToastProvider } from "./components/ui"
 import WelcomeScreen from './components/WelcomeScreen'
+import MemoryGame from './components/MemoryGame'
 
 function App() {
-  const { summary, loading, error, clearError, fetchSkills, fetchSummary, fetchMentalReps, fetchChallenges, fetchBooksStatus, fetchAiStatus, profile, profileLoading, fetchProfile } = useStore()
+  const { summary, loading, error, clearError, fetchSkills, fetchSummary, fetchTimeline, fetchMentalReps, fetchChallenges, fetchBooksStatus, fetchAiStatus, profile, profileLoading, fetchProfile } = useStore()
   const [mounted, setMounted] = useState(false)
+  const [showMemoryGame, setShowMemoryGame] = useState(false)
+  const [activeSkillId, setActiveSkillId] = useState(null)
 
   useEffect(() => {
     fetchProfile()
@@ -51,6 +54,20 @@ function App() {
     }
   }, [mounted, handleCardMouseMove])
 
+  // Memory game navigation
+  const handleMemoryGameStart = useCallback((skillId) => {
+    setActiveSkillId(skillId)
+    setShowMemoryGame(true)
+  }, [])
+
+  const handleMemoryGameClose = useCallback(() => {
+    setShowMemoryGame(false)
+    setActiveSkillId(null)
+    // Refresh data after practice
+    fetchSummary()
+    fetchTimeline()
+  }, [fetchSummary, fetchTimeline])
+
   // Profile guard — show spinner while loading, welcome if no profile
   if (profileLoading) {
     return (
@@ -62,6 +79,10 @@ function App() {
 
   if (!profile) {
     return <WelcomeScreen />
+  }
+
+  if (showMemoryGame) {
+    return <MemoryGame skillId={activeSkillId} onClose={handleMemoryGameClose} />
   }
 
   return (
@@ -166,7 +187,7 @@ function App() {
                 ) : (
                   <div className="space-y-4 stagger">
                     {summary?.skills?.map((s) => (
-                      <SkillCard key={s.skill.id} summary={s} />
+                      <SkillCard key={s.skill.id} summary={s} onSkillClick={handleMemoryGameStart} />
                     ))}
                   </div>
                 )}

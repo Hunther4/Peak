@@ -126,6 +126,21 @@ export const api = {
       }),
     getBest: (task) => request(`/models/best?task=${task}`),
     getAvailable: (task) => request(`/models/available?task=${task}`),
+    getSelection: () => request("/models/selection"),
+    select: (modelName, provider, modelId) =>
+      request("/models/select", {
+        method: "POST",
+        body: JSON.stringify({
+          model_name: modelName,
+          provider,
+          model_id: modelId,
+        }),
+      }),
+    selectAuto: () =>
+      request("/models/select", {
+        method: "POST",
+        body: JSON.stringify({ auto: true }),
+      }),
   },
 
   profile: {
@@ -153,6 +168,21 @@ export const api = {
       }
       return res.json()
     },
+  },
+
+  memoryGame: {
+    createSession: (skillId) => request(`/memory-game/sessions?skill_id=${skillId}`, { method: "POST" }),
+    createRound: (sessionId) =>
+      request(`/memory-game/sessions/${sessionId}/rounds`, { method: "POST" }),
+    submitAttempt: (roundId, submittedNumbers) =>
+      request(`/memory-game/rounds/${roundId}/attempts`, {
+        method: "POST",
+        body: JSON.stringify({ submitted_numbers: submittedNumbers }),
+      }),
+    consolidate: (sessionId) =>
+      request(`/memory-game/sessions/${sessionId}/consolidate`, { method: "POST" }),
+    getState: (sessionId) => request(`/memory-game/sessions/${sessionId}/state`),
+    getHistory: (sessionId) => request(`/memory-game/sessions/${sessionId}/history`),
   },
 }
 

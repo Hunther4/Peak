@@ -121,7 +121,11 @@ def _call_openrouter(system_prompt: str, user_prompt: str, response_model: Type[
         return None
 
 def execute_with_router(task_type: str, system_prompt: str, user_prompt: str, response_model: Type[T]) -> Optional[T]:
-    """Ejecuta la llamada a la IA ruteando según el modo (Local o API con fallback)."""
+    """Ejecuta la llamada a la IA ruteando según el modo (Local o API con fallback).
+
+    Si hay un modelo específico seleccionado por el usuario (no auto),
+    se usa ese modelo directamente en lugar del ranking inteligente.
+    """
     load_dotenv()
     mode = get_ai_mode()
     
@@ -129,8 +133,43 @@ def execute_with_router(task_type: str, system_prompt: str, user_prompt: str, re
         logger.info("Ruteando a LM Studio (Local)")
         return local_generate_structured_json(system_prompt, user_prompt, response_model, force_local=True)
     
-    # Modo API: Groq -> OpenRouter -> Local Fallback
+    # Modo API
     logger.info("Ruteando a API Mode...")
+    
+    # Check for manual model selection
+    selected_raw = get_setting("selected_model", "")
+    selected = None
+    if selected_raw:
+        try:
+            selected = json.loads(selected_raw)
+        except (json.JSONDecodeError, TypeError):
+            selected = None
+    
+    is_auto = selected is None or selected.get("auto", True)
+    
+    if not is_auto:
+        provider = selected.get("provider")
+        model_id = selected.get("model_id")
+        model_name = selected.get("model_name", "")
+        
+        if provider == "groq" and model_id:
+            logger.info("Usando modelo seleccionado: %s (Groq)", model_name)
+            res = _call_groq(system_prompt, user_prompt, response_model, model_id)
+            if res:
+                return res
+            logger.warning("Modelo seleccionado Groq falló, usando selección inteligente")
+        elif provider == "openrouter" and model_id:
+            logger.info("Usando modelo seleccionado: %s (OpenRouter)", model_name)
+            res = _call_openrouter(system_prompt, user_prompt, response_model, model_id)
+            if res:
+                return res
+            logger.warning("Modelo seleccionado OpenRouter falló, usando selección inteligente")
+        elif provider == "lm_studio":
+            logger.info("Usando modelo seleccionado: %s (Local)", model_name)
+            return local_generate_structured_json(system_prompt, user_prompt, response_model, force_local=True)
+    
+    # Smart selection: Groq -> OpenRouter -> Local Fallback
+    logger.info("Usando selección inteligente...")
     
     # 1. Intentar Groq
     groq_model = get_best_model_for_task(task_type, preferred_provider="groq")

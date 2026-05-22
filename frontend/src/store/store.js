@@ -197,18 +197,21 @@ export const useStore = create((set, get) => ({
   ai_mode: "local",
   available_models: [],
   best_model: null,
+  selectedModel: { auto: true },
 
   fetchAiStatus: async () => {
     try {
       const statusRes = await api.models.getStatus()
       set({ ai_mode: statusRes.mode })
 
-      // Para mostrar info:
       const modelsRes = await api.models.getAvailable()
       set({ available_models: modelsRes })
 
       const bestRes = await api.models.getBest("audit")
       set({ best_model: bestRes })
+
+      const selRes = await api.models.getSelection()
+      set({ selectedModel: selRes.selection })
     } catch (e) {
       console.warn("[store] fetchAiStatus error:", e.message)
     }
@@ -221,6 +224,33 @@ export const useStore = create((set, get) => ({
       get().fetchAiStatus()
     } catch (e) {
       console.warn("[store] setAiMode error:", e.message)
+    }
+  },
+
+  selectModel: async (modelName, provider, modelId) => {
+    try {
+      await api.models.select(modelName, provider, modelId)
+      set({
+        selectedModel: {
+          auto: false,
+          model_name: modelName,
+          provider,
+          model_id: modelId,
+        },
+      })
+    } catch (e) {
+      console.warn("[store] selectModel error:", e.message)
+      throw e
+    }
+  },
+
+  selectModelAuto: async () => {
+    try {
+      await api.models.selectAuto()
+      set({ selectedModel: { auto: true } })
+    } catch (e) {
+      console.warn("[store] selectModelAuto error:", e.message)
+      throw e
     }
   },
 
@@ -273,6 +303,64 @@ export const useStore = create((set, get) => ({
     set({ profile: updated })
     localStorage.setItem("peak_profile", JSON.stringify(updated))
     return result
+  },
+
+  // --- Memory Game ---
+  gameSession: null,
+  currentRound: null,
+  lastAttempt: null,
+  gamePhase: 'idle', // idle | presenting | recalling | feedback | consolidating | done
+  gameHistory: [],
+  gameError: null,
+
+  startMemoryGame: async (skillId) => {
+    const session = await api.memoryGame.createSession(skillId)
+    set({ gameSession: session, gamePhase: 'presenting', gameError: null })
+    return session
+  },
+
+  createMemoryRound: async () => {
+    const { gameSession } = get()
+    const round = await api.memoryGame.createRound(gameSession.id)
+    set({ currentRound: round, lastAttempt: null, gamePhase: 'presenting' })
+    return round
+  },
+
+  submitMemoryAttempt: async (roundId, submittedNumbers) => {
+    const result = await api.memoryGame.submitAttempt(roundId, submittedNumbers)
+    set({ lastAttempt: result, gamePhase: 'feedback' })
+    return result
+  },
+
+  consolidateMemoryGame: async () => {
+    const { gameSession } = get()
+    const result = await api.memoryGame.consolidate(gameSession.id)
+    set({ gamePhase: 'done', lastAttempt: null, currentRound: null })
+    return result
+  },
+
+  fetchMemoryState: async () => {
+    const { gameSession } = get()
+    const state = await api.memoryGame.getState(gameSession.id)
+    return state
+  },
+
+  fetchMemoryHistory: async () => {
+    const { gameSession } = get()
+    const data = await api.memoryGame.getHistory(gameSession.id)
+    set({ gameHistory: data.rounds })
+    return data
+  },
+
+  resetMemoryGame: () => {
+    set({
+      gameSession: null,
+      currentRound: null,
+      lastAttempt: null,
+      gamePhase: 'idle',
+      gameHistory: [],
+      gameError: null,
+    })
   },
 
   clearError: () => set({ error: null })
