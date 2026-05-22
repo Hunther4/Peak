@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef, createContext, useContext } from 'react';
+import { createPortal } from 'react-dom';
 
 const ToastContext = createContext(null);
 
@@ -87,7 +88,7 @@ export function Modal({ isOpen, onClose, title, children, onConfirm, confirmText
 
   if (!isOpen) return null;
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-[90] flex items-center justify-center p-4" onClick={onClose}>
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" aria-hidden="true" style={{ animation: 'fadeIn 0.2s ease-out' }} />
       <div
@@ -120,7 +121,8 @@ export function Modal({ isOpen, onClose, title, children, onConfirm, confirmText
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
