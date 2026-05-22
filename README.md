@@ -1,5 +1,10 @@
 # Peak Practice 🚀
 
+![Tests](https://img.shields.io/badge/tests-279%20passing-brightgreen)
+![Coverage](https://img.shields.io/badge/coverage-76%25-yellow)
+![License](https://img.shields.io/badge/license-GPLv3-blue)
+![Stack](https://img.shields.io/badge/stack-FastAPI%20%7C%20React-6366f1)
+
 **Agentic deliberate practice system based on Anders Ericsson's principles.**
 
 *Sistema agéntico e inteligente de práctica deliberada basado en los principios de Anders Ericsson.*
@@ -12,7 +17,7 @@ Peak Practice is a full-stack platform for deliberate practice — the evidence-
 
 ## Tech Stack
 
-- **Frontend:** React, Vite, Zustand, TailwindCSS + PWA Ready
+- **Frontend:** React, Vite, Zustand, TailwindCSS
 - **Backend:** FastAPI, SQLModel (SQLite with PRAGMA journal_mode=WAL for high concurrency)
 - **AI Layer:** Dynamic agentic router (Groq / OpenRouter / LM Studio local) with strict Pydantic contracts for structured output
 - **Vector DB (RAG):** ChromaDB + Local HuggingFace embeddings (BAAI/bge-small-en-v1.5)
@@ -106,6 +111,11 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 # Peak Practice 🚀
 
+![Tests](https://img.shields.io/badge/tests-279%20passing-brightgreen)
+![Coverage](https://img.shields.io/badge/coverage-76%25-yellow)
+![License](https://img.shields.io/badge/license-GPLv3-blue)
+![Stack](https://img.shields.io/badge/stack-FastAPI%20%7C%20React-6366f1)
+
 **Sistema agéntico e inteligente de práctica deliberada basado en los principios de Anders Ericsson.**
 
 *Agentic deliberate practice system based on Anders Ericsson's principles.*
@@ -118,7 +128,7 @@ Peak Practice es una plataforma full-stack de práctica deliberada — el métod
 
 ### Stack Tecnológico
 
-- **Frontend:** React, Vite, Zustand, TailwindCSS + PWA Ready
+- **Frontend:** React, Vite, Zustand, TailwindCSS
 - **Backend:** FastAPI, SQLModel (SQLite con PRAGMA journal_mode=WAL para alta concurrencia)
 - **Capa de IA:** Router agéntico dinámico (Groq / OpenRouter / LM Studio local) con contratos Pydantic estrictos para salida estructurada
 - **BD Vectorial (RAG):** ChromaDB + Embeddings locales de HuggingFace (BAAI/bge-small-en-v1.5)

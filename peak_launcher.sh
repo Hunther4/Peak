@@ -38,6 +38,7 @@ systemctl --user is-active peak-frontend &>/dev/null && \
     echo "   ya está corriendo" || \
     systemd-run --user --unit=peak-frontend \
         --working-directory="$FRONTEND_DIR" \
+        -E PATH="/home/hunther4/.nvm/versions/node/v24.14.1/bin:/usr/bin:/bin" \
         /home/hunther4/.nvm/versions/node/v24.14.1/bin/pnpm exec vite \
             --host 0.0.0.0 &>/dev/null
 
