@@ -226,8 +226,28 @@ export const useStore = create((set, get) => ({
 
   // --- Profile / Onboarding ---
   fetchProfile: async () => {
+    // Instant load from localStorage cache
+    const cached = localStorage.getItem("peak_profile")
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached)
+        set({ profile: parsed, profileLoading: false })
+        // Sync with backend in background (don't await)
+        api.profile.get().then(profile => {
+          if (profile) {
+            set({ profile })
+            localStorage.setItem("peak_profile", JSON.stringify(profile))
+          }
+        }).catch(() => {})
+        return parsed
+      } catch {}
+    }
+    // First time — fetch from API
     try {
       const profile = await api.profile.get()
+      if (profile) {
+        localStorage.setItem("peak_profile", JSON.stringify(profile))
+      }
       set({ profile, profileLoading: false })
       return profile
     } catch (e) {
@@ -239,6 +259,7 @@ export const useStore = create((set, get) => ({
   saveProfile: async (name, age) => {
     const profile = await api.profile.save({ name, age })
     set({ profile })
+    localStorage.setItem("peak_profile", JSON.stringify(profile))
     return profile
   },
 

@@ -151,6 +151,7 @@
     opacity: 0;
     transition: opacity 0.4s ease;
     animation: spotlight-sweep 3s linear infinite;
+    pointer-events: none;
   }
   
   .card:hover::after {
@@ -350,6 +351,7 @@
     opacity: 0;
     transition: opacity 0.4s ease;
     animation: spotlight-sweep 3s linear infinite;
+    pointer-events: none;
   }
   
   .glass-panel:hover {

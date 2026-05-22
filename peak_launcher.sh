@@ -11,6 +11,9 @@ BACKEND_DIR="$PROJECT_ROOT/backend"
 FRONTEND_DIR="$PROJECT_ROOT/frontend"
 export PYTHONPATH="$BACKEND_DIR"
 
+NODE_BIN="/home/hunther4/.nvm/versions/node/v24.14.1/bin"
+UVICORN="$BACKEND_DIR/venv/bin/uvicorn"
+
 cleanup() {
     echo -e "\n\033[0;31m🛑 Apagando Peak Practice...\033[0m"
     systemctl --user stop peak-backend 2>/dev/null
@@ -20,32 +23,55 @@ cleanup() {
 }
 trap cleanup SIGINT SIGTERM
 
+ensure_service() {
+    local name="$1"
+    local status
+    status="$(systemctl --user is-active "$name" 2>/dev/null)"
+    if [ "$status" = "active" ]; then
+        echo "   ✅ $name ya está corriendo"
+        return 0
+    fi
+    # Limpiar estado failed si existe
+    systemctl --user reset-failed "$name" 2>/dev/null
+    return 1
+}
+
 echo -e "\033[0;32m🚀 Iniciando Peak Practice...\033[0m"
 
 # ── Backend ────────────────────────────────────────────────
 echo "📡 Levantando Backend en puerto 8000..."
-systemctl --user is-active peak-backend &>/dev/null && \
-    echo "   ya está corriendo" || \
+if ! ensure_service peak-backend; then
     systemd-run --user --unit=peak-backend \
         --working-directory="$BACKEND_DIR" \
         -E PYTHONPATH="$BACKEND_DIR" \
-        /home/hunther4/Peak/backend/venv/bin/uvicorn main:app \
-            --host 0.0.0.0 --port 8000 &>/dev/null
+        "$UVICORN" main:app --host 0.0.0.0 --port 8000
+    sleep 1
+    if [ "$(systemctl --user is-active peak-backend)" = "active" ]; then
+        echo "   ✅ Backend listo"
+    else
+        echo -e "   \033[0;31m❌ Backend falló. Logs: journalctl --user -u peak-backend --no-pager -n 30\033[0m"
+    fi
+fi
 
 # ── Frontend ───────────────────────────────────────────────
 echo "🌐 Levantando Frontend en puerto 5173..."
-systemctl --user is-active peak-frontend &>/dev/null && \
-    echo "   ya está corriendo" || \
+if ! ensure_service peak-frontend; then
     systemd-run --user --unit=peak-frontend \
         --working-directory="$FRONTEND_DIR" \
-        -E PATH="/home/hunther4/.nvm/versions/node/v24.14.1/bin:/usr/bin:/bin" \
-        /home/hunther4/.nvm/versions/node/v24.14.1/bin/pnpm exec vite \
-            --host 0.0.0.0 &>/dev/null
+        -E PATH="$NODE_BIN:/usr/bin:/bin" \
+        "$NODE_BIN/pnpm" exec vite --host 0.0.0.0
+    sleep 2
+    if [ "$(systemctl --user is-active peak-frontend)" = "active" ]; then
+        echo "   ✅ Frontend listo"
+    else
+        echo -e "   \033[0;31m❌ Frontend falló. Logs: journalctl --user -u peak-frontend --no-pager -n 30\033[0m"
+    fi
+fi
 
 echo -e "\033[0;32m✅ ¡Sistema listo!\033[0m"
 echo "👉 Backend:  http://localhost:8000"
 echo "👉 Frontend: http://localhost:5173"
-echo "💡 Ctrl+C para detener. Los servicios se reinician solos si los matan."
-echo "   Para ver logs: journalctl --user -u peak-backend --no-pager -n 50"
+echo "💡 Ctrl+C para detener."
+echo "   Logs: journalctl --user -u peak-backend --no-pager -n 30"
 
 wait
