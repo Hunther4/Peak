@@ -12,7 +12,7 @@ from contextlib import asynccontextmanager
 from slowapi import _rate_limit_exceeded_handler
 from core.limiter import limiter
 from core.database import create_db_and_tables
-from api.routes import skills, sessions, assessments, dashboard, books, mental, models, health, profile
+from api.routes import skills, sessions, assessments, dashboard, books, mental, models, health, profile, cognitive
 from api.routes.memory_game import router as memory_game_router
 from core.tasks import shutdown_executor
 from core.auth import api_key_manager, auth_middleware
@@ -80,6 +80,7 @@ app.include_router(models.router, prefix="/api/models", tags=["Models"])
 app.include_router(health.router, prefix="/api", tags=["Health"])
 app.include_router(profile.router, prefix="/api", tags=["Profile"])
 app.include_router(memory_game_router, prefix="/api/memory-game", tags=["memory-game"])
+app.include_router(cognitive.router, prefix="/api/cognitive", tags=["Cognitive"])
 
 
 @app.get("/")

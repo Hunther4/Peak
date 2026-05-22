@@ -20,7 +20,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import pytest
 from sqlalchemy.pool import StaticPool
-from sqlmodel import SQLModel, Session, create_engine
+from sqlmodel import SQLModel, Session, create_engine, delete
 from unittest.mock import patch
 
 # StaticPool: UNA sola conexión compartida entre fixtures y TestClient.
@@ -44,6 +44,14 @@ def setup_db():
     """Crea tablas antes de cada test, las destruye después."""
     SQLModel.metadata.create_all(TEST_ENGINE)
     yield
+    # Limpieza física estricta para evitar leaks entre tests debido a StaticPool
+    with Session(TEST_ENGINE) as session:
+        for table in reversed(SQLModel.metadata.sorted_tables):
+            try:
+                session.exec(delete(table))
+            except Exception:
+                pass
+        session.commit()
     SQLModel.metadata.drop_all(TEST_ENGINE)
     # Reset auth manager cache so each test starts clean
     from core.auth import api_key_manager

@@ -1,6 +1,6 @@
 from typing import Optional
 from sqlmodel import SQLModel, Field
-from datetime import datetime
+from datetime import datetime, timezone
 
 class CognitiveSkill(SQLModel, table=True):
     """Tipo de tarea cognitiva basada en fases psicométricas."""
@@ -13,7 +13,7 @@ class CognitiveSession(SQLModel, table=True):
     """Telemetría global de una sesión de entrenamiento cerebral."""
     id: Optional[int] = Field(default=None, primary_key=True)
     cognitive_skill_id: int = Field(foreign_key="cognitiveskill.id")
-    fecha_inicio: datetime = Field(default_factory=datetime.utcnow)
+    fecha_inicio: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     fecha_fin: Optional[datetime] = None
     nivel_n_alcanzado: int = Field(default=1)
     tiempo_reaccion_promedio_ms: float = Field(default=0.0)

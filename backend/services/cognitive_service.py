@@ -1,8 +1,8 @@
 from typing import List
-from sqlmodel import Session as DBSession
-from datetime import datetime
+from sqlmodel import Session as DBSession, select
+from datetime import datetime, timezone
 
-from ..models.cognitive_models import CognitiveTrial, CognitiveSession, CognitiveSkill
+from models.cognitive_models import CognitiveTrial, CognitiveSession, CognitiveSkill
 
 
 def calcular_escalera_psicometrica(tasa_precision: float, nivel_n_actual: int) -> int:
@@ -52,7 +52,7 @@ def agregar_trial(db: DBSession, trial: CognitiveTrial) -> CognitiveTrial:
     return trial
 
 def obtener_trials(db: DBSession, session_id: int) -> List[CognitiveTrial]:
-    return db.query(CognitiveTrial).filter(CognitiveTrial.session_id == session_id).all()
+    return db.exec(select(CognitiveTrial).where(CognitiveTrial.session_id == session_id)).all()
 
 def finalizar_session(db: DBSession, session_id: int) -> dict:
     session = db.get(CognitiveSession, session_id)
@@ -64,7 +64,7 @@ def finalizar_session(db: DBSession, session_id: int) -> dict:
     session.tasa_precision = metrics["precision"]
     session.tiempo_reaccion_promedio_ms = metrics["rt_promedio"]
     session.nivel_n_alcanzado = metrics["siguiente_n"]
-    session.fecha_fin = datetime.utcnow()
+    session.fecha_fin = datetime.now(timezone.utc)
     db.add(session)
     db.commit()
     db.refresh(session)

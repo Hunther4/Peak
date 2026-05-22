@@ -70,9 +70,10 @@ class TestLazyAPIKeyManager:
         assert setting.value == manager._cached_hash
         assert manager.verify("from-env") is True
 
-    def test_initialize_generates_key_when_no_env_no_db(self):
+    def test_initialize_generates_key_when_no_env_no_db(self, monkeypatch):
         """GIVEN no env and no DB WHEN initialize THEN generates 32-char hex key."""
         from core.auth import LazyAPIKeyManager
+        monkeypatch.delenv("PEAK_API_KEY", raising=False)
 
         manager = LazyAPIKeyManager()
         result = manager.initialize()
@@ -94,9 +95,10 @@ class TestLazyAPIKeyManager:
 
         assert manager.verify(raw) is True
 
-    def test_initialize_twice_is_idempotent(self):
+    def test_initialize_twice_is_idempotent(self, monkeypatch):
         """GIVEN initialized manager WHEN initialize() is called again THEN no error."""
         from core.auth import LazyAPIKeyManager
+        monkeypatch.delenv("PEAK_API_KEY", raising=False)
 
         manager = LazyAPIKeyManager()
         first = manager.initialize()
@@ -108,9 +110,10 @@ class TestLazyAPIKeyManager:
             assert manager.verify(first) is True
             assert second is None  # already exists
 
-    def test_initialize_uses_existing_db_key(self, session):
+    def test_initialize_uses_existing_db_key(self, session, monkeypatch):
         """GIVEN key in DB and no env WHEN initialize THEN loads existing key."""
         from core.auth import LazyAPIKeyManager
+        monkeypatch.delenv("PEAK_API_KEY", raising=False)
         from models.models import AppSetting
         import bcrypt
 

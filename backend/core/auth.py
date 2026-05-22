@@ -16,8 +16,7 @@ import bcrypt
 from fastapi import Request
 from fastapi.responses import JSONResponse
 from sqlmodel import Session, select
-
-from core.database import engine
+import core.database
 from models.models import AppSetting
 
 logger = logging.getLogger(__name__)
@@ -48,7 +47,7 @@ class LazyAPIKeyManager:
         """
         env_key = os.environ.get("PEAK_API_KEY")
 
-        with Session(engine) as session:
+        with Session(core.database.engine) as session:
             if env_key:
                 hashed = bcrypt.hashpw(env_key.encode(), bcrypt.gensalt()).decode()
                 setting = session.exec(
@@ -122,7 +121,7 @@ async def auth_middleware(request: Request, call_next):
     if request.method == "OPTIONS":
         return await call_next(request)
 
-    if request.url.path.startswith(("/api/health", "/api/models/status", "/api/profile", "/uploads")):
+    if request.url.path.startswith(("/api/health", "/uploads")):
         return await call_next(request)
 
     api_key = request.headers.get("X-API-Key")

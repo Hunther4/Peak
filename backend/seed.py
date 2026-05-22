@@ -12,19 +12,19 @@ from models.models import Skill, AiModel
 
 SKILLS = [
     {
-        "slug": "memory",
-        "name": "Memoria",
-        "domain": "memory",
-        "skill_type": "staircase",
-        "config_path": "skills/memory.yaml",
+        "slug": "iq-practice",
+        "name": "Práctica de IQ",
+        "domain": "cognitive",
+        "skill_type": "placeholder",
+        "config_path": "skills/iq-practice.yaml",
         "current_level": 1.0
     },
     {
-        "slug": "math",
-        "name": "Matemáticas",
+        "slug": "math-thinking",
+        "name": "Pensamiento Matemático",
         "domain": "math",
         "skill_type": "problem_set",
-        "config_path": "skills/math.yaml",
+        "config_path": "skills/math-thinking.yaml",
         "current_level": 1.0
     },
     {
