@@ -4,7 +4,7 @@
 
 *Sistema agéntico e inteligente de práctica deliberada basado en los principios de Anders Ericsson.*
 
-Peak Practice is a full-stack deliberate practice platform that indexes your scientific literature (PDFs) via RAG and uses a dynamic agentic router to evaluate sessions, calculate cognitive deviations, and generate progressively harder challenges — all without vendor lock-in. Bring your own LLM (Groq, OpenRouter, or local LM Studio) and your own books.
+Peak Practice is a full-stack platform for deliberate practice — the evidence-based method for accelerated skill development. Upload your own PDFs (scientific literature, books, manuals) and the system indexes them via RAG, so your AI coach can reference your personal library during every session. A dynamic agentic router evaluates your practice logs, calculates cognitive deviations, and generates progressively harder challenges — all without vendor lock-in. Bring your own LLM (Groq, OpenRouter, or local LM Studio) and your own books.
 
 <!-- Screenshot: peak-dashboard.png -->
 
@@ -21,6 +21,14 @@ Peak Practice is a full-stack deliberate practice platform that indexes your sci
 
 ---
 
+## How It Works
+
+A **session** is a practice log entry. You pick a skill you're working on, set a difficulty level, write what you corrected from your last session, and describe your hypothesis for tomorrow. There are no accounts, no emails — just practice entries stored in your local SQLite database.
+
+When you submit a session, the AI evaluates it against deliberate practice principles, pulls relevant context from your PDF library via RAG, and returns specific suggestions for your next session. Over time, the system adapts challenges to your skill level and tracks your growth.
+
+---
+
 ## Quick Start
 
 ```bash
@@ -29,7 +37,7 @@ chmod +x peak_launcher.sh
 ./peak_launcher.sh
 ```
 
-The launcher starts both the backend (port 8000) and frontend (port 5173) automatically.
+The launcher starts both the backend (port 8000) and frontend (port 5173) automatically. Open http://localhost:5173 to begin your first session.
 
 ---
 
@@ -56,7 +64,7 @@ Copy `backend/.env.example` to `backend/.env` and configure as needed. The launc
 User → Frontend (React) → API (FastAPI) → AI Router (Groq/OpenRouter/LM Studio) + RAG (ChromaDB) → Structured response → Feedback loop
 ```
 
-The frontend sends practice sessions to the FastAPI backend, which delegates to the dynamic AI router. The router selects the best available model, augments the prompt with relevant context from your personal PDF library via ChromaDB RAG, and returns structured, validated output via Pydantic contracts. Results flow back through the API for storage, analysis, and dashboard visualization — closing the deliberate practice loop.
+The frontend sends practice sessions to the FastAPI backend, which delegates to the dynamic AI router. The router selects the best available model, augments the prompt with relevant excerpts from your personal PDF library via ChromaDB RAG, and returns a validated structured response via Pydantic contracts. The result flows back through the API for storage, analysis, and dashboard visualization — closing the deliberate practice loop.
 
 <!-- Screenshot: session-flow.png -->
 
@@ -102,7 +110,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 *Agentic deliberate practice system based on Anders Ericsson's principles.*
 
-Peak Practice es una plataforma full-stack de práctica deliberada que indexa tu literatura científica (PDFs) via RAG y utiliza un router agéntico dinámico para evaluar sesiones, calcular desviaciones cognitivas y generar desafíos progresivamente más difíciles — sin dependencia de un proveedor específico. Usa tu propio LLM (Groq, OpenRouter o LM Studio local) y tus propios libros.
+Peak Practice es una plataforma full-stack de práctica deliberada — el método basado en evidencia para acelerar el desarrollo de habilidades. Subí tus propios PDFs (literatura científica, libros, manuales) y el sistema los indexa via RAG, así tu coach de IA puede consultar tu biblioteca personal en cada sesión. Un router agéntico dinámico evalúa tus registros de práctica, calcula desviaciones cognitivas y genera desafíos progresivamente más difíciles — sin depender de un proveedor específico. Usá tu propio LLM (Groq, OpenRouter o LM Studio local) y tus propios libros.
 
 <!-- Screenshot: peak-dashboard.png -->
 
@@ -119,6 +127,14 @@ Peak Practice es una plataforma full-stack de práctica deliberada que indexa tu
 
 ---
 
+### Cómo Funciona
+
+Una **sesión** es un registro de práctica. Elegís una habilidad, definís un nivel de dificultad, escribís qué corregiste desde tu última sesión y describís tu hipótesis para mañana. No hay cuentas ni correos electrónicos — solo entradas de práctica guardadas en tu base de datos SQLite local.
+
+Cuando enviás una sesión, la IA la evalúa contra los principios de práctica deliberada, busca contexto relevante en tu biblioteca de PDFs via RAG y devuelve sugerencias concretas para tu próxima sesión. Con el tiempo, el sistema adapta los desafíos a tu nivel y sigue tu progreso.
+
+---
+
 ### Inicio Rápido
 
 ```bash
@@ -127,7 +143,7 @@ chmod +x peak_launcher.sh
 ./peak_launcher.sh
 ```
 
-El lanzador inicia tanto el backend (puerto 8000) como el frontend (puerto 5173) automáticamente.
+El lanzador inicia tanto el backend (puerto 8000) como el frontend (puerto 5173) automáticamente. Abrí http://localhost:5173 para comenzar tu primera sesión.
 
 ---
 
@@ -154,7 +170,7 @@ Copia `backend/.env.example` a `backend/.env` y configura según sea necesario. 
 Usuario → Frontend (React) → API (FastAPI) → Router IA (Groq/OpenRouter/LM Studio) + RAG (ChromaDB) → Respuesta estructurada → Bucle de retroalimentación
 ```
 
-El frontend envía sesiones de práctica al backend FastAPI, que delega en el router dinámico de IA. El router selecciona el mejor modelo disponible, aumenta el prompt con contexto relevante de tu biblioteca personal de PDFs via ChromaDB RAG, y devuelve una respuesta estructurada y validada mediante contratos Pydantic. Los resultados vuelven a través de la API para almacenamiento, análisis y visualización en el dashboard — cerrando el ciclo de práctica deliberada.
+El frontend envía sesiones de práctica al backend FastAPI, que delega en el router dinámico de IA. El router selecciona el mejor modelo disponible, enriquece el prompt con fragmentos relevantes de tu biblioteca personal de PDFs via ChromaDB RAG, y devuelve una respuesta estructurada y validada mediante contratos Pydantic. El resultado vuelve a través de la API para almacenamiento, análisis y visualización en el dashboard — cerrando el ciclo de práctica deliberada.
 
 <!-- Screenshot: session-flow.png -->
 

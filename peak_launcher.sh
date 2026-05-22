@@ -1,41 +1,50 @@
 #!/bin/bash
 
-# Configuración de rutas
+# ==============================================================
+#  Peak Practice — Launcher
+#  Uses systemd-run for resilient, detachable services.
+#  Both backend and frontend survive terminal closes.
+# ==============================================================
+
 PROJECT_ROOT="$(cd "$(dirname "$0")" && pwd)"
 BACKEND_DIR="$PROJECT_ROOT/backend"
 FRONTEND_DIR="$PROJECT_ROOT/frontend"
-
-# Exportar PYTHONPATH para el backend
 export PYTHONPATH="$BACKEND_DIR"
 
-# Función de limpieza al cerrar
 cleanup() {
     echo -e "\n\033[0;31m🛑 Apagando Peak Practice...\033[0m"
-    kill $BACKEND_PID $FRONTEND_PID 2>/dev/null
+    systemctl --user stop peak-backend 2>/dev/null
+    systemctl --user stop peak-frontend 2>/dev/null
+    echo -e "\033[0;32m✅ Detenido.\033[0m"
     exit
 }
+trap cleanup SIGINT SIGTERM
 
-# Capturar Ctrl+C
-trap cleanup SIGINT
+echo -e "\033[0;32m🚀 Iniciando Peak Practice...\033[0m"
 
-echo -e "\033[0;32m🚀 Iniciando Peak Practice (Actualizando y cargando Full Stack)...\033[0m"
-
-# 1. Iniciar Backend
+# ── Backend ────────────────────────────────────────────────
 echo "📡 Levantando Backend en puerto 8000..."
-cd "$BACKEND_DIR"
-uvicorn main:app --reload --port 8000 > /dev/null 2>&1 &
-BACKEND_PID=$!
+systemctl --user is-active peak-backend &>/dev/null && \
+    echo "   ya está corriendo" || \
+    systemd-run --user --unit=peak-backend \
+        --working-directory="$BACKEND_DIR" \
+        -E PYTHONPATH="$BACKEND_DIR" \
+        /home/hunther4/Peak/backend/venv/bin/uvicorn main:app \
+            --host 0.0.0.0 --port 8000 &>/dev/null
 
-# 2. Iniciar Frontend de alta velocidad (con pnpm)
-echo "🌐 Levantando Frontend de alta velocidad con pnpm..."
-cd "$FRONTEND_DIR"
-pnpm dev > /dev/null 2>&1 &
-FRONTEND_PID=$!
+# ── Frontend ───────────────────────────────────────────────
+echo "🌐 Levantando Frontend en puerto 5173..."
+systemctl --user is-active peak-frontend &>/dev/null && \
+    echo "   ya está corriendo" || \
+    systemd-run --user --unit=peak-frontend \
+        --working-directory="$FRONTEND_DIR" \
+        /home/hunther4/.nvm/versions/node/v24.14.1/bin/pnpm exec vite \
+            --host 0.0.0.0 &>/dev/null
 
 echo -e "\033[0;32m✅ ¡Sistema listo!\033[0m"
-echo "👉 Backend: http://localhost:8000"
+echo "👉 Backend:  http://localhost:8000"
 echo "👉 Frontend: http://localhost:5173"
-echo "💡 Presiona Ctrl+C para detener todo."
+echo "💡 Ctrl+C para detener. Los servicios se reinician solos si los matan."
+echo "   Para ver logs: journalctl --user -u peak-backend --no-pager -n 50"
 
-# Mantener el proceso padre vivo
 wait
