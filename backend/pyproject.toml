@@ -1,0 +1,7 @@
+[tool.coverage.run]
+source = ["api", "core", "models"]
+omit = ["tests/*", "venv/*", "*/__pycache__/*"]
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 30

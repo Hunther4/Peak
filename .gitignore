@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Node
+node_modules/
+dist/
+.vite/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+.env.local
+
+# SQLite
+*.db
+*.db-shm
+*.db-wal
+
+# Backend venv
+backend/venv/
+
+# ChromaDB
+chroma_data/
+
+# Books (you add them manually)
+books/*.pdf
+!books/README.md
+
+# Python cache and coverage
+.pytest_cache/
+.coverage
+
+# OpenSpec artifacts
+openspec/

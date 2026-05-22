@@ -1,0 +1,103 @@
+IMPLEMENTACION: INDICADOR DE SALUD (SEMAFORO)
+
+Este documento contiene los pasos para implementar indicadores visuales de estado (Semaforo) en el frontend, permitiendo monitorear el backend y el modo de IA.
+
+---
+
+### PASO 1: BACKEND - Endpoint de Salud
+
+Crear el archivo: /home/hunther4/Peak/backend/api/routes/health.py
+
+```python
+from fastapi import APIRouter
+
+router = APIRouter()
+
+@router.get("/health")
+async def health_check():
+    return {"status": "ok"}
+```
+
+Registrar en: /home/hunther4/Peak/backend/main.py
+
+```python
+from api.routes.health import router as health_router
+
+app.include_router(health_router, prefix="/api", tags=["health"])
+```
+
+---
+
+### PASO 2: FRONTEND - Componente StatusIndicator
+
+Crear archivo: /home/hunther4/Peak/frontend/src/components/StatusIndicator.jsx
+
+```jsx
+import { useState, useEffect } from 'react';
+import { apiClient } from '../api/client';
+
+const StatusDot = ({ status }) => {
+  const colors = {
+    ok: 'bg-green-500',
+    checking: 'bg-yellow-500',
+    error: 'bg-red-500'
+  };
+  return <div className={`w-3 h-3 rounded-full ${colors[status] || colors.checking} animate-pulse`} />;
+};
+
+export const StatusIndicator = () => {
+  const [status, setStatus] = useState({ backend: 'checking', ai: 'checking' });
+
+  useEffect(() => {
+    const checkStatus = async () => {
+      // Check Backend
+      let backendStatus = 'error';
+      try {
+        await apiClient.get('/api/health');
+        backendStatus = 'ok';
+      } catch { backendStatus = 'error'; }
+
+      // Check AI Mode
+      let aiStatus = 'error';
+      try {
+        const mode = await apiClient.get('/api/models/mode');
+        aiStatus = mode.data.mode === 'api' ? 'ok' : 'ok';
+      } catch { aiStatus = 'error'; }
+
+      setStatus({ backend: backendStatus, ai: aiStatus });
+    };
+
+    checkStatus();
+    const interval = setInterval(checkStatus, 3000);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <div className="flex items-center gap-4 text-xs text-neutral-400">
+      <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1"><StatusDot status={status.backend} /> Backend</div>
+        <div className="flex items-center gap-1"><StatusDot status={status.ai} /> API</div>
+      </div>
+      <div className="flex items-center gap-2 border-l border-neutral-800 pl-4">
+        <div className="flex items-center gap-1"><StatusDot status="ok" /> Local</div>
+      </div>
+    </div>
+  );
+};
+```
+
+---
+
+### PASO 3: INTEGRACION
+
+Importar e incluir en: /home/hunther4/Peak/frontend/src/App.jsx
+
+```jsx
+import { StatusIndicator } from './components/StatusIndicator';
+
+// En el render:
+<div className="flex items-center gap-4">
+   <StatusIndicator />
+   {/* ... navbar ... */}
+</div>
+```

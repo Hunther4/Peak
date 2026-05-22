@@ -1,0 +1,20 @@
+slug: memory
+name: Memoria
+domain: memory
+skill_type: staircase
+evaluation_protocol: staircase
+prompts:
+  coach: |
+    Evalúa esta sesión de memoria con dígitos.
+    - El error de encoding es concreto?
+    - La estrategia de codificación está documentada?
+    - El span mejoró, se mantuvo o empeoró respecto a la sesión anterior?
+difficulties:
+  1: {min: 6, max: 8}
+  2: {min: 9, max: 11}
+  3: {min: 12, max: 14}
+  4: {min: 15, max: 17}
+  5: {min: 18, max: 99}
+assessment_defaults:
+  formal_every_n_sessions: 0
+  min_duration_minutes: 10
