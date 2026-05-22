@@ -102,10 +102,10 @@ function App() {
 
             {/* Right Controls */}
             <div className="flex items-center gap-4">
-              <ProfileAvatar />
               <StatusIndicator />
               <div className="w-px h-6 bg-white/[0.06]" />
               <AiModeToggle />
+              <ProfileAvatar />
             </div>
           </div>
         </header>
