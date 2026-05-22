@@ -9,6 +9,8 @@ export const useStore = create((set, get) => ({
   timeline: [],
   loading: false,
   error: null,
+  profile: null,
+  profileLoading: true,
 
   // Actions
   fetchSkills: async () => {
@@ -220,6 +222,24 @@ export const useStore = create((set, get) => ({
     } catch (e) {
       console.warn("[store] setAiMode error:", e.message)
     }
+  },
+
+  // --- Profile / Onboarding ---
+  fetchProfile: async () => {
+    try {
+      const profile = await api.profile.get()
+      set({ profile, profileLoading: false })
+      return profile
+    } catch (e) {
+      set({ profileLoading: false })
+      return null
+    }
+  },
+
+  saveProfile: async (name, age) => {
+    const profile = await api.profile.save({ name, age })
+    set({ profile })
+    return profile
   },
 
   clearError: () => set({ error: null })

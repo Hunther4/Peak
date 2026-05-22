@@ -127,6 +127,15 @@ export const api = {
     getBest: (task) => request(`/models/best?task=${task}`),
     getAvailable: (task) => request(`/models/available?task=${task}`),
   },
+
+  profile: {
+    get: () => request("/profile"),
+    save: (data) =>
+      request("/profile", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+  },
 }
 
 export default api

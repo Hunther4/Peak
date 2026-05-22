@@ -12,12 +12,14 @@ import { StatusIndicator } from "./components/StatusIndicator"
 import AmbientParticles from "./components/AmbientParticles"
 import Spotlight from "./components/Spotlight"
 import { ToastProvider } from "./components/ui"
+import WelcomeScreen from './components/WelcomeScreen'
 
 function App() {
-  const { summary, loading, error, clearError, fetchSkills, fetchSummary, fetchMentalReps, fetchChallenges, fetchBooksStatus, fetchAiStatus } = useStore()
+  const { summary, loading, error, clearError, fetchSkills, fetchSummary, fetchMentalReps, fetchChallenges, fetchBooksStatus, fetchAiStatus, profile, profileLoading, fetchProfile } = useStore()
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
+    fetchProfile()
     fetchSkills()
     fetchSummary()
     fetchMentalReps()
@@ -47,6 +49,19 @@ function App() {
       })
     }
   }, [mounted, handleCardMouseMove])
+
+  // Profile guard — show spinner while loading, welcome if no profile
+  if (profileLoading) {
+    return (
+      <div className="min-h-screen bg-neutral-950 flex items-center justify-center">
+        <div className="w-6 h-6 border-2 border-neutral-700 border-t-green-500 rounded-full animate-spin" />
+      </div>
+    )
+  }
+
+  if (!profile) {
+    return <WelcomeScreen />
+  }
 
   return (
     <ToastProvider>

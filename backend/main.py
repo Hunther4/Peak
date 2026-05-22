@@ -11,7 +11,7 @@ from contextlib import asynccontextmanager
 from slowapi import _rate_limit_exceeded_handler
 from core.limiter import limiter
 from core.database import create_db_and_tables
-from api.routes import skills, sessions, assessments, dashboard, books, mental, models, health
+from api.routes import skills, sessions, assessments, dashboard, books, mental, models, health, profile
 from core.tasks import shutdown_executor
 from core.auth import api_key_manager, auth_middleware
 
@@ -74,6 +74,7 @@ app.include_router(books.router, prefix="/api/books", tags=["Books"])
 app.include_router(mental.router, prefix="/api/mental", tags=["Mental"])
 app.include_router(models.router, prefix="/api/models", tags=["Models"])
 app.include_router(health.router, prefix="/api", tags=["Health"])
+app.include_router(profile.router, prefix="/api", tags=["Profile"])
 
 
 @app.get("/")

@@ -115,3 +115,11 @@ class AppSetting(SQLModel, table=True):
     key: str = Field(unique=True, index=True)
     value: str
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class UserProfile(SQLModel, table=True):
+    """Simple user identity — no auth, just name + age for the welcome screen."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str = Field(max_length=100)
+    age: int = Field(ge=1, le=150)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
