@@ -237,6 +237,10 @@ export const useStore = create((set, get) => ({
           if (profile) {
             set({ profile })
             localStorage.setItem("peak_profile", JSON.stringify(profile))
+          } else {
+            // Backend doesn't have a profile — clear stale cache
+            localStorage.removeItem("peak_profile")
+            set({ profile: null })
           }
         }).catch(() => {})
         return parsed
@@ -261,6 +265,14 @@ export const useStore = create((set, get) => ({
     set({ profile })
     localStorage.setItem("peak_profile", JSON.stringify(profile))
     return profile
+  },
+
+  uploadAvatar: async (file) => {
+    const result = await api.profile.uploadAvatar(file)
+    const updated = { ...get().profile, avatar_url: result.avatar_url }
+    set({ profile: updated })
+    localStorage.setItem("peak_profile", JSON.stringify(updated))
+    return result
   },
 
   clearError: () => set({ error: null })

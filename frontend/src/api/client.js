@@ -135,6 +135,24 @@ export const api = {
         method: "POST",
         body: JSON.stringify(data),
       }),
+    uploadAvatar: async (file) => {
+      const url = `${BASE_URL}/profile/avatar`
+      const formData = new FormData()
+      formData.append("file", file)
+      const headers = {
+        ...(API_KEY ? { "X-API-Key": API_KEY } : {}),
+      }
+      const res = await fetch(url, {
+        method: "POST",
+        headers,
+        body: formData,
+      })
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({ detail: res.statusText }))
+        throw new Error(error.detail || `Error ${res.status}`)
+      }
+      return res.json()
+    },
   },
 }
 

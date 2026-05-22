@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
+from starlette.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 
 from slowapi import _rate_limit_exceeded_handler
@@ -48,6 +49,8 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Peak Practice API", version="1.0.0", lifespan=lifespan)
+
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 app.add_middleware(
     CORSMiddleware,

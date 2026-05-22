@@ -122,7 +122,7 @@ async def auth_middleware(request: Request, call_next):
     if request.method == "OPTIONS":
         return await call_next(request)
 
-    if request.url.path.startswith(("/api/health", "/api/models/status", "/api/profile")):
+    if request.url.path.startswith(("/api/health", "/api/models/status", "/api/profile", "/uploads")):
         return await call_next(request)
 
     api_key = request.headers.get("X-API-Key")
