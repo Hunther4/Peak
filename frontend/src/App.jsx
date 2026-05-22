@@ -9,6 +9,7 @@ import ModelInfo from "./components/ModelInfo"
 import MentalRepTimeline from "./components/MentalRepTimeline"
 import ChallengeList from "./components/ChallengeList"
 import { StatusIndicator } from "./components/StatusIndicator"
+import ProfileAvatar from "./components/ProfileAvatar"
 import AmbientParticles from "./components/AmbientParticles"
 import Spotlight from "./components/Spotlight"
 import { ToastProvider } from "./components/ui"
@@ -101,6 +102,7 @@ function App() {
 
             {/* Right Controls */}
             <div className="flex items-center gap-4">
+              <ProfileAvatar />
               <StatusIndicator />
               <div className="w-px h-6 bg-white/[0.06]" />
               <AiModeToggle />
