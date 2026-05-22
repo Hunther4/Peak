@@ -203,24 +203,22 @@ class TestEvaluateAttempt:
         assert len(result["errors"]) == 4
 
     def test_fewer_submitted_than_expected(self):
-        """Fewer submitted → missing positions marked as got:None."""
+        """Fewer submitted → attempt marked incorrect."""
         expected = [3, 7, 1, 9]
         submitted = [3, 7]
         result = evaluate_attempt(expected, submitted)
         assert result["correct"] is False
-        assert result["correct_positions"] == 2
-        assert len(result["errors"]) == 2
-        assert result["errors"][0] == {"position": 2, "expected": 1, "got": None}
-        assert result["errors"][1] == {"position": 3, "expected": 9, "got": None}
+        assert result["correct_positions"] == 0 # Now invalidates completely
 
     def test_more_submitted_than_expected(self):
-        """More submitted → extra positions ignored."""
+        """More submitted → attempt marked incorrect."""
         expected = [3, 7, 1]
         submitted = [3, 7, 1, 9, 5]
         result = evaluate_attempt(expected, submitted)
-        assert result["correct"] is True
-        assert result["correct_positions"] == 3
-        assert result["errors"] == []
+        assert result["correct"] is False
+        assert result["correct_positions"] == 0
+        assert len(result["errors"]) == 1
+        assert result["errors"][0]["position"] == -1
 
 
 # =============================================================================

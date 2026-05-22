@@ -1,7 +1,11 @@
 const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api"
 
-// Read API key from Vite env var (VITE_PEAK_API_KEY) or localStorage
-const API_KEY = import.meta.env.VITE_PEAK_API_KEY || localStorage.getItem("peak_api_key")
+// API key is held in memory only, not localStorage
+let API_KEY = import.meta.env.VITE_PEAK_API_KEY || null
+
+export const setClientApiKey = (key) => {
+  API_KEY = key
+}
 
 async function request(path, options = {}) {
   const url = `${BASE_URL}${path}`
@@ -171,7 +175,11 @@ export const api = {
   },
 
   memoryGame: {
-    createSession: (skillId) => request(`/memory-game/sessions?skill_id=${skillId}`, { method: "POST" }),
+    createSession: (skillId) =>
+      request("/memory-game/sessions", {
+        method: "POST",
+        body: JSON.stringify({ skill_id: skillId }),
+      }),
     createRound: (sessionId) =>
       request(`/memory-game/sessions/${sessionId}/rounds`, { method: "POST" }),
     submitAttempt: (roundId, submittedNumbers) =>
@@ -186,7 +194,11 @@ export const api = {
   },
 
   mathThinking: {
-    createSession: (skillId) => request(`/math-thinking/sessions?skill_id=${skillId}`, { method: "POST" }),
+    createSession: (skillId) =>
+      request("/math-thinking/sessions", {
+        method: "POST",
+        body: JSON.stringify({ skill_id: skillId }),
+      }),
     createRound: (sessionId) =>
       request(`/math-thinking/sessions/${sessionId}/rounds`, { method: "POST" }),
     submitAttempt: (roundId, userAnswer) =>

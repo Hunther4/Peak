@@ -16,6 +16,9 @@ from models.models import Session as PracticeSession
 router = APIRouter()
 
 
+class GameSessionCreate(BaseModel):
+    skill_id: int
+
 class AttemptSubmission(BaseModel):
     submitted_numbers: List[int]
 
@@ -25,9 +28,9 @@ def get_db():
 
 
 @router.post("/sessions")
-def create_game_session(skill_id: int, db: Session = Depends(get_db)):
+def create_game_session(body: GameSessionCreate, db: Session = Depends(get_db)):
     """Start a new memory game session."""
-    session = MemoryNumberSession(skill_id=skill_id)
+    session = MemoryNumberSession(skill_id=body.skill_id)
     db.add(session)
     db.commit()
     db.refresh(session)
@@ -112,6 +115,17 @@ def submit_attempt(
     
     # Update staircase
     game_session = db.get(MemoryNumberSession, round_obj.game_session_id)
+    
+    # CRITICAL: result must be defined before if block to avoid crash if session missing
+    result = {
+        "new_span": round_obj.span,
+        "new_phase": round_obj.phase,
+        "phase_changed": False,
+        "message": "",
+        "new_consecutive_correct": 0,
+        "new_consecutive_incorrect": 0
+    }
+    
     if game_session:
         result = calculate_staircase(
             game_session.current_span,
@@ -127,9 +141,9 @@ def submit_attempt(
         if result["phase_changed"]:
             game_session.phase = result["new_phase"]
         
-        # Track best
-        if round_obj.span > game_session.best_span:
-            game_session.best_span = round_obj.span
+        # Track best: Use the updated session state
+        if game_session.current_span > game_session.best_span:
+            game_session.best_span = game_session.current_span
         if game_session.phase > game_session.best_phase:
             game_session.best_phase = game_session.phase
         
@@ -144,11 +158,8 @@ def submit_attempt(
         "correct_positions": evaluation["correct_positions"],
         "total_positions": evaluation["total_positions"],
         "errors": evaluation["errors"],
-        "staircase_message": result.get("message", ""),
-        "phase_changed": result.get("phase_changed", False),
-        "new_phase": result.get("new_phase", game_session.phase if game_session else round_obj.phase),
-        "new_span": result.get("new_span", game_session.current_span if game_session else round_obj.span),
-        "next_timing": get_phase_config(result.get("new_phase", game_session.phase if game_session else round_obj.phase))["timing"],
+        "staircase_result": result,
+        "next_timing": get_phase_config(result.get("new_phase", round_obj.phase))["timing"],
     }
 
 

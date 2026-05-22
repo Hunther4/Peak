@@ -182,14 +182,18 @@ function MemoryGame({ skillId, onClose }) {
   // --- Compute derived values ---
   const numbers = currentRound?.numbers || []
   const timing = currentRound?.timing || {}
-  const span = currentRound?.span ?? lastAttempt?.span ?? "-"
-  const phase = currentRound?.phase ?? lastAttempt?.phase ?? ""
+  const span = currentRound?.span ?? lastAttempt?.new_span ?? "-"
+  const phase = currentRound?.phase ?? lastAttempt?.new_phase ?? ""
   const roundNumber = currentRound?.round_number ?? gameSession?.rounds_completed ?? 0
   const roundsCompleted = gameSession?.rounds_completed ?? 0
 
-  const correctPositions = lastAttempt?.correct_positions ?? []
-  const allCorrect = lastAttempt?.all_correct ?? false
-  const streakMessage = lastAttempt?.streak_message ?? ""
+  // correct_positions from backend is an int (count), so build per-position booleans here
+  const correctPositions = numbers.map((num, i) => {
+    const recall = parseInt(recallValues[i], 10)
+    return !isNaN(recall) && recall === num
+  })
+  const allCorrect = lastAttempt?.correct ?? false
+  const streakMessage = lastAttempt?.staircase_message ?? ""
 
   // --- RENDER ---
   return (

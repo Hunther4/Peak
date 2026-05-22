@@ -158,13 +158,21 @@ def evaluate_attempt(expected_numbers: list, submitted_numbers: list) -> dict:
     Returns dict with: correct (bool), correct_positions (int), total_positions (int), errors (list)
     """
     total = len(expected_numbers)
+    
+    # HIGH Fix: Extra/missing submitted numbers mark attempt as incorrect
+    if len(submitted_numbers) != total:
+        return {
+            "correct": False,
+            "correct_positions": 0,
+            "total_positions": total,
+            "errors": [{"position": -1, "expected": total, "got": len(submitted_numbers)}],
+        }
+
     errors = []
     correct_positions = 0
     
     for i in range(total):
-        if i >= len(submitted_numbers):
-            errors.append({"position": i, "expected": expected_numbers[i], "got": None})
-        elif submitted_numbers[i] != expected_numbers[i]:
+        if submitted_numbers[i] != expected_numbers[i]:
             errors.append({"position": i, "expected": expected_numbers[i], "got": submitted_numbers[i]})
         else:
             correct_positions += 1

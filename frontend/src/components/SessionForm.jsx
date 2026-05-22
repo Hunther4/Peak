@@ -67,7 +67,8 @@ export default function SessionForm() {
   ];
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-3">
+    <form onSubmit={handleSubmit} className="card p-5 space-y-3">
+      <h2 className="text-sm font-bold text-white/90 tracking-tight mb-2">Nueva sesión</h2>
       {/* Skill + Duration — row */}
       <div className="flex items-stretch gap-2">
         <div className="flex-1">

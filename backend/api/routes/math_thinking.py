@@ -6,6 +6,8 @@ import yaml
 from typing import Optional
 from pydantic import BaseModel
 
+import os
+
 from core.database import engine
 from core.math_thinking import generate_problem, evaluate_attempt, calculate_staircase, MathProblem
 from core import router as core_router
@@ -13,6 +15,10 @@ from models.models import Skill, MathThinkingSession, MathThinkingRound, MathThi
 from models.models import Session as PracticeSession
 
 router = APIRouter()
+
+
+class MathSessionCreate(BaseModel):
+    skill_id: int
 
 
 class AttemptSubmission(BaseModel):
@@ -25,17 +31,20 @@ def get_db():
 
 
 def load_skill_config():
-    with open("skills/math-thinking.yaml") as f:
+    # Use path relative to project root
+    base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    config_path = os.path.join(base_dir, "skills", "math-thinking.yaml")
+    with open(config_path) as f:
         return yaml.safe_load(f)
 
 
 @router.post("/sessions")
-def create_math_session(skill_id: int, db: Session = Depends(get_db)):
+def create_math_session(body: MathSessionCreate, db: Session = Depends(get_db)):
     """Start a new math thinking session."""
-    skill = db.get(Skill, skill_id)
+    skill = db.get(Skill, body.skill_id)
     if not skill:
         raise HTTPException(404, "Skill not found")
-    session = MathThinkingSession(skill_id=skill_id)
+    session = MathThinkingSession(skill_id=body.skill_id)
     db.add(session)
     db.commit()
     db.refresh(session)
