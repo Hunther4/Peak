@@ -1,3 +1,4 @@
+import { AmbientBackground } from "./AmbientBackground"
 import AmbientParticles from "../AmbientParticles"
 
 /**
