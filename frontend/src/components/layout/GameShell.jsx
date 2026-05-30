@@ -1,4 +1,3 @@
-import { BreadcrumbBar } from "./BreadcrumbBar"
 import AmbientParticles from "../AmbientParticles"
 
 /**
@@ -43,16 +42,8 @@ export function GameShell({
     amber: "shadow-amber-500/25",
   }
 
-  const accentText = {
-    green: "text-green-400",
-    purple: "text-purple-400",
-    blue: "text-blue-400",
-    amber: "text-amber-400",
-  }
-
   const styles = accentStyles[accentColor] || accentStyles.green
   const glow = accentGlow[accentColor] || accentGlow.green
-  const textColor = accentText[accentColor] || accentText.green
 
   return (
     <div className="min-h-screen bg-neutral-950 relative overflow-hidden">
@@ -62,12 +53,13 @@ export function GameShell({
       {/* Floating particles */}
       <AmbientParticles />
 
-      {/* Header */}
+      {/* Single header with back button */}
       <header
         className="sticky top-0 z-50 border-b border-white/[0.06] glass-panel"
         style={{ backdropFilter: "blur(24px) saturate(1.8)" }}
       >
         <div className="max-w-[1400px] mx-auto flex items-center justify-between px-8 py-4">
+          {/* Left: icon + title + subtitle */}
           <div className="flex items-center gap-4">
             <div
               className={`w-10 h-10 rounded-xl bg-gradient-to-br ${styles} flex items-center justify-center text-black font-black text-lg ${glow} transition-all`}
@@ -83,6 +75,8 @@ export function GameShell({
               </p>
             </div>
           </div>
+
+          {/* Right: level + escape hint + back button */}
           <div className="flex items-center gap-4">
             {level !== undefined && (
               <span className="text-sm font-mono text-neutral-400">
@@ -94,12 +88,16 @@ export function GameShell({
                 Presioná Escape para salir
               </span>
             )}
+            <button
+              onClick={onBack}
+              className="flex items-center gap-2 text-xs text-neutral-500 hover:text-white transition-colors px-4 py-2 rounded-lg border border-white/[0.08] hover:border-white/[0.2]"
+            >
+              <span className="text-base leading-none">←</span>
+              Volver al panel
+            </button>
           </div>
         </div>
       </header>
-
-      {/* Back button (breadcrumb) */}
-      <BreadcrumbBar onBack={onBack} />
 
       {/* Error banner */}
       {error && (
