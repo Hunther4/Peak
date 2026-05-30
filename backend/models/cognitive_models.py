@@ -18,6 +18,7 @@ class CognitiveSession(SQLModel, table=True):
     nivel_n_alcanzado: int = Field(default=1)
     tiempo_reaccion_promedio_ms: float = Field(default=0.0)
     tasa_precision: float = Field(default=0.0)
+    consolidated_session_id: Optional[int] = Field(default=None, foreign_key="session.id", ondelete="SET NULL")
 
 class CognitiveTrial(SQLModel, table=True):
     """Micro‑dato de cada estímulo/pregunta de la sesión."""

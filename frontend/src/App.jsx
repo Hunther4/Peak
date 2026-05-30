@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react"
 import { useStore } from "./store/store"
+import api from "./api/client"
 import SkillCard from "./components/SkillCard"
 import Timeline from "./components/Timeline"
 import SessionForm from "./components/SessionForm"
@@ -12,17 +13,29 @@ import { StatusIndicator } from "./components/StatusIndicator"
 import ProfileAvatar from "./components/ProfileAvatar"
 import AmbientParticles from "./components/AmbientParticles"
 import Spotlight from "./components/Spotlight"
+import { AmbientBackground } from "./components/layout/AmbientBackground"
 import { ToastProvider } from "./components/ui"
 import WelcomeScreen from './components/WelcomeScreen'
 import MemoryGame from './components/MemoryGame'
 import MathThinkingGame from './components/MathThinkingGame'
+import DualNBackGame from './components/DualNBackGame'
+import IQPracticeGame from './components/IQPracticeGame'
+import GuidedPractice from './components/GuidedPractice'
+
+// Game route map — adding a new game = 1 line here + 1 component file
+const GAME_ROUTES = {
+  memory_number: { Component: MemoryGame, needsSkillId: true },
+  problem_set: { Component: MathThinkingGame, needsSkillId: true },
+  dual_n_back: { Component: DualNBackGame, needsSkillId: false },
+  iq_practice: { Component: IQPracticeGame, needsSkillId: true },
+  _guided: { Component: GuidedPractice, needsSkillId: true },
+}
 
 function App() {
   const { summary, loading, error, clearError, fetchSkills, fetchSummary, fetchTimeline, fetchMentalReps, fetchChallenges, fetchBooksStatus, fetchAiStatus, profile, profileLoading, fetchProfile } = useStore()
   const [mounted, setMounted] = useState(false)
-  const [showMemoryGame, setShowMemoryGame] = useState(false)
-  const [showMathThinking, setShowMathThinking] = useState(false)
-  const [activeSkillId, setActiveSkillId] = useState(null)
+  const [activeGame, setActiveGame] = useState(null) // { type: string, skillId: number | null }
+  const [showSessionForm, setShowSessionForm] = useState(false)
 
   useEffect(() => {
     fetchProfile()
@@ -34,6 +47,25 @@ function App() {
     fetchAiStatus()
     setMounted(true)
   }, [])
+
+  // Clear all practice data
+  const [clearing, setClearing] = useState(false)
+  const handleClearData = useCallback(async () => {
+    if (!window.confirm("¿Eliminar todos los registros de práctica? Esto incluye sesiones, juegos y evaluaciones. No se puede deshacer.")) return
+    setClearing(true)
+    try {
+      await api.sessions.clearAll()
+      fetchSkills()
+      fetchSummary()
+      fetchTimeline()
+      fetchMentalReps()
+      fetchChallenges()
+    } catch (e) {
+      console.error("Error al limpiar registros:", e)
+    } finally {
+      setClearing(false)
+    }
+  }, [fetchSkills, fetchSummary, fetchTimeline, fetchMentalReps, fetchChallenges])
 
   // Card spotlight effect
   const handleCardMouseMove = useCallback((e) => {
@@ -56,29 +88,19 @@ function App() {
     }
   }, [mounted, handleCardMouseMove])
 
-  // Memory game navigation
-  const handleMemoryGameStart = useCallback((skillId) => {
-    setActiveSkillId(skillId)
-    setShowMemoryGame(true)
+  // Unified practice routing
+  const handlePractice = useCallback((skillId, skillType) => {
+    const route = GAME_ROUTES[skillType]
+    if (route) {
+      setActiveGame({ type: skillType, skillId: route.needsSkillId ? skillId : null })
+    } else {
+      setActiveGame({ type: "_guided", skillId })
+    }
   }, [])
 
-  const handleMemoryGameClose = useCallback(() => {
-    setShowMemoryGame(false)
-    setActiveSkillId(null)
-    // Refresh data after practice
-    fetchSummary()
-    fetchTimeline()
-  }, [fetchSummary, fetchTimeline])
-
-  // Math thinking navigation
-  const handleMathThinkingStart = useCallback((skillId) => {
-    setActiveSkillId(skillId)
-    setShowMathThinking(true)
-  }, [])
-
-  const handleMathThinkingClose = useCallback(() => {
-    setShowMathThinking(false)
-    setActiveSkillId(null)
+  // Single close handler — replaces 5 identical callbacks
+  const handleCloseGame = useCallback(() => {
+    setActiveGame(null)
     fetchSummary()
     fetchTimeline()
   }, [fetchSummary, fetchTimeline])
@@ -96,24 +118,25 @@ function App() {
     return <WelcomeScreen />
   }
 
-  if (showMemoryGame) {
-    return <MemoryGame skillId={activeSkillId} onClose={handleMemoryGameClose} />
-  }
-
-  if (showMathThinking) {
-    return <MathThinkingGame skillId={activeSkillId} onClose={handleMathThinkingClose} />
+  // Game overlay — render active game via route map
+  if (activeGame) {
+    const route = GAME_ROUTES[activeGame.type]
+    if (route) {
+      const { Component } = route
+      return (
+        <Component
+          skillId={activeGame.skillId}
+          onClose={handleCloseGame}
+        />
+      )
+    }
   }
 
   return (
     <ToastProvider>
       <div className="min-h-screen relative">
         {/* Ambient Background Effects */}
-        <div className="fixed inset-0 pointer-events-none overflow-hidden">
-          <div className="absolute -top-[40%] -left-[20%] w-[60%] h-[60%] bg-green-500/[0.03] rounded-full blur-[120px]" style={{ animation: 'mesh-shift 15s ease-in-out infinite' }} />
-          <div className="absolute -bottom-[30%] -right-[15%] w-[50%] h-[50%] bg-emerald-600/[0.02] rounded-full blur-[100px]" style={{ animation: 'mesh-shift 20s ease-in-out infinite reverse' }} />
-          <div className="absolute top-[20%] right-[10%] w-[30%] h-[30%] bg-blue-500/[0.02] rounded-full blur-[80px]" style={{ animation: 'mesh-shift 18s ease-in-out infinite' }} />
-          <div className="absolute bottom-[10%] left-[5%] w-[25%] h-[25%] bg-purple-500/[0.015] rounded-full blur-[90px]" style={{ animation: 'mesh-shift 22s ease-in-out infinite reverse' }} />
-        </div>
+        <AmbientBackground />
 
         {/* Particles & Spotlight */}
         <AmbientParticles />
@@ -145,6 +168,14 @@ function App() {
               <StatusIndicator />
               <div className="w-px h-6 bg-white/[0.06]" />
               <AiModeToggle />
+              <button
+                onClick={handleClearData}
+                disabled={clearing}
+                className="text-[11px] text-neutral-600 hover:text-red-400 transition-colors uppercase tracking-wider font-medium disabled:opacity-40"
+                title="Limpiar todos los registros de práctica"
+              >
+                {clearing ? "..." : "Limpiar"}
+              </button>
               <ProfileAvatar />
             </div>
           </div>
@@ -157,7 +188,7 @@ function App() {
             <div className="mb-8 p-4 bg-red-500/[0.08] border border-red-500/20 rounded-2xl flex items-center justify-between" style={{ animation: 'fadeInUp 0.3s ease-out' }}>
               <div className="flex items-center gap-3">
                 <span className="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center text-red-400 text-sm">✕</span>
-                <p className="text-sm text-red-400">Error de conexión: {error}</p>
+                <p className="text-sm text-red-400">Error de conexión: {typeof error === 'string' ? error : JSON.stringify(error)}</p>
               </div>
               <button onClick={clearError} className="text-xs text-red-500/60 hover:text-red-400 transition-colors">
                 Cerrar
@@ -165,88 +196,101 @@ function App() {
             </div>
           )}
 
-          {/* Session Form */}
+          {/* Skills Section */}
           <section className="mb-8">
-            <SessionForm />
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-9 h-9 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-lg">
+                🎯
+              </div>
+              <h2 className="text-lg font-bold text-white">Tus Skills</h2>
+              {loading && (
+                <div className="flex items-center gap-2 ml-auto">
+                  <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-ping" />
+                  <span className="text-[10px] text-green-500/70 uppercase tracking-wider">Sync</span>
+                </div>
+              )}
+            </div>
+            
+            {summary?.skills?.length === 0 ? (
+              <div className="card text-center py-12">
+                <div className="w-16 h-16 rounded-2xl bg-neutral-800/50 flex items-center justify-center text-2xl mx-auto mb-4">🎯</div>
+                <p className="text-sm text-neutral-400 mb-2">No hay skills todavía</p>
+                <p className="text-xs text-neutral-600">
+                  Ejecutá <code className="text-green-400 bg-green-500/10 px-2 py-1 rounded">python seed.py</code> para empezar
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4 stagger">
+                {summary?.skills?.map((s) => (
+                  <SkillCard key={s.skill.id} summary={s} onPractice={handlePractice} />
+                ))}
+              </div>
+            )}
+          </section>
+
+          {/* Session Form — collapsed by default */}
+          <section className="mb-8">
+            {showSessionForm ? (
+              <div className="relative">
+                <SessionForm />
+                <button
+                  onClick={() => setShowSessionForm(false)}
+                  className="mt-2 w-full py-2 text-[11px] text-neutral-500 hover:text-neutral-300 transition-colors uppercase tracking-wider"
+                >
+                  ▴ Ocultar formulario
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowSessionForm(true)}
+                className="card w-full py-4 px-5 flex items-center justify-between hover:border-green-500/20 transition-all duration-200 group"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-green-500/10 border border-green-500/20 flex items-center justify-center text-sm">
+                    +
+                  </div>
+                  <span className="text-sm font-medium text-neutral-400 group-hover:text-white transition-colors">
+                    Registro manual
+                  </span>
+                </div>
+                <span className="text-neutral-600 group-hover:text-neutral-400 transition-colors">▾</span>
+              </button>
+            )}
           </section>
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
             {/* Left Column */}
             <div className="lg:col-span-5 space-y-8 stagger">
-              {/* Skills */}
               <section>
                 <div className="flex items-center gap-3 mb-6">
-                  <div className="w-9 h-9 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-lg">
-                    🎯
-                  </div>
-                  <h2 className="text-lg font-bold text-white">Tus Skills</h2>
-                  {loading && (
-                    <div className="flex items-center gap-2 ml-auto">
-                      <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-ping" />
-                      <span className="text-[10px] text-green-500/70 uppercase tracking-wider">Sync</span>
-                    </div>
-                  )}
-                </div>
-                
-                {summary?.skills?.length === 0 ? (
-                  <div className="card text-center py-12">
-                    <div className="w-16 h-16 rounded-2xl bg-neutral-800/50 flex items-center justify-center text-2xl mx-auto mb-4">🎯</div>
-                    <p className="text-sm text-neutral-400 mb-2">No hay skills todavía</p>
-                    <p className="text-xs text-neutral-600">
-                      Ejecutá <code className="text-green-400 bg-green-500/10 px-2 py-1 rounded">python seed.py</code> para empezar
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-4 stagger">
-                    {summary?.skills?.map((s) => (
-                      <SkillCard key={s.skill.id} summary={s} onSkillClick={handleMemoryGameStart} onMathClick={handleMathThinkingStart} />
-                    ))}
-                  </div>
-                )}
-              </section>
-
-              {/* Challenges */}
-              <section>
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="w-9 h-9 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-lg">
-                    🧩
-                  </div>
+                  <div className="w-9 h-9 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-lg">🧩</div>
                   <h2 className="text-lg font-bold text-white">Desafíos</h2>
                   <div className="flex-1 h-px bg-gradient-to-r from-white/[0.06] to-transparent ml-4" />
                 </div>
                 <ChallengeList />
               </section>
 
-              {/* Mental Reps */}
               <section>
                 <div className="flex items-center gap-3 mb-6">
-                  <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-lg">
-                    🧠
-                  </div>
+                  <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-lg">🧠</div>
                   <h2 className="text-lg font-bold text-white">Representaciones Mentales</h2>
                   <div className="flex-1 h-px bg-gradient-to-r from-white/[0.06] to-transparent ml-4" />
                 </div>
                 <MentalRepTimeline />
               </section>
 
-              {/* Books */}
               <section>
                 <div className="flex items-center gap-3 mb-6">
-                  <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-lg">
-                    📚
-                  </div>
+                  <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-lg">📚</div>
                   <h2 className="text-lg font-bold text-white">Biblioteca RAG</h2>
                   <div className="flex-1 h-px bg-gradient-to-r from-white/[0.06] to-transparent ml-4" />
                 </div>
                 <BooksPanel />
               </section>
 
-              {/* Model Info */}
               <section>
                 <div className="flex items-center gap-3 mb-6">
-                  <div className="w-9 h-9 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-lg">
-                    🤖
-                  </div>
+                  <div className="w-9 h-9 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-lg">🤖</div>
                   <h2 className="text-lg font-bold text-white">Motor de IA</h2>
                   <div className="flex-1 h-px bg-gradient-to-r from-white/[0.06] to-transparent ml-4" />
                 </div>
@@ -257,9 +301,7 @@ function App() {
             {/* Right Column: Timeline */}
             <div className="lg:col-span-7">
               <div className="flex items-center gap-3 mb-6">
-                <div className="w-9 h-9 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center text-lg">
-                  📝
-                </div>
+                <div className="w-9 h-9 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center text-lg">📝</div>
                 <h2 className="text-lg font-bold text-white">Registro de Auditoría</h2>
                 <div className="flex-1 h-px bg-gradient-to-r from-white/[0.06] to-transparent ml-4" />
               </div>

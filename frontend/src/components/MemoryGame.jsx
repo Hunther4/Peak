@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react"
 import { useStore } from "../store/store"
-import AmbientParticles from "./AmbientParticles"
+import { GameShell } from "./layout/GameShell"
 
 const PHASE_LABELS = {
   acquisition: "Adquisición",
@@ -43,7 +43,7 @@ function MemoryGame({ skillId, onClose }) {
     try {
       const store = useStore.getState()
       if (!skillId) throw new Error("No se especificó el skill")
-      const session = await store.startMemoryGame(skillId)
+      await store.startMemoryGame(skillId)
       await store.createMemoryRound()
     } catch (e) {
       setError(e.message)
@@ -67,7 +67,6 @@ function MemoryGame({ skillId, onClose }) {
     let idx = 0
     const showNext = () => {
       if (idx >= numbers.length) {
-        // Done presenting — brief pause then transition to recalling
         presentingTimerRef.current = setTimeout(() => {
           useStore.setState({ gamePhase: "recalling" })
         }, 400)
@@ -78,7 +77,6 @@ function MemoryGame({ skillId, onClose }) {
       idx++
       presentingTimerRef.current = setTimeout(() => {
         setShowNumber(false)
-        // Small gap between numbers
         presentingTimerRef.current = setTimeout(showNext, 150)
       }, perNumberMs)
     }
@@ -154,7 +152,6 @@ function MemoryGame({ skillId, onClose }) {
 
   // --- Handle recall input change ---
   const handleRecallChange = useCallback((index, value) => {
-    // Only allow digits
     const sanitized = value.replace(/\D/g, "")
     setRecallValues((prev) => {
       const next = [...prev]
@@ -167,7 +164,6 @@ function MemoryGame({ skillId, onClose }) {
   const handleRecallKeyDown = useCallback(
     (e, index) => {
       if (e.key === "Enter") {
-        // If not last field, focus next
         const inputs = document.querySelectorAll('[data-recall-input]')
         if (index < inputs.length - 1) {
           inputs[index + 1].focus()
@@ -187,7 +183,6 @@ function MemoryGame({ skillId, onClose }) {
   const roundNumber = currentRound?.round_number ?? gameSession?.rounds_completed ?? 0
   const roundsCompleted = gameSession?.rounds_completed ?? 0
 
-  // correct_positions from backend is an int (count), so build per-position booleans here
   const correctPositions = numbers.map((num, i) => {
     const recall = parseInt(recallValues[i], 10)
     return !isNaN(recall) && recall === num
@@ -197,66 +192,22 @@ function MemoryGame({ skillId, onClose }) {
 
   // --- RENDER ---
   return (
-    <div className="min-h-screen bg-neutral-950 relative overflow-hidden">
-      {/* Ambient Background */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        <div
-          className="absolute -top-[40%] -left-[20%] w-[60%] h-[60%] bg-green-500/[0.03] rounded-full blur-[120px]"
-          style={{ animation: "mesh-shift 15s ease-in-out infinite" }}
-        />
-        <div
-          className="absolute -bottom-[30%] -right-[15%] w-[50%] h-[50%] bg-emerald-600/[0.02] rounded-full blur-[100px]"
-          style={{ animation: "mesh-shift 20s ease-in-out infinite reverse" }}
-        />
-        <div
-          className="absolute top-[20%] right-[10%] w-[30%] h-[30%] bg-blue-500/[0.02] rounded-full blur-[80px]"
-          style={{ animation: "mesh-shift 18s ease-in-out infinite" }}
-        />
-        <div
-          className="absolute bottom-[10%] left-[5%] w-[25%] h-[25%] bg-purple-500/[0.015] rounded-full blur-[90px]"
-          style={{ animation: "mesh-shift 22s ease-in-out infinite reverse" }}
-        />
-      </div>
-
-      <AmbientParticles />
-
-      {/* Top bar */}
-      <header className="relative z-10 sticky top-0 border-b border-white/[0.06] glass-panel" style={{ backdropFilter: "blur(24px) saturate(1.8)" }}>
-        <div className="max-w-[1400px] mx-auto flex items-center justify-between px-8 py-4">
-          <div className="flex items-center gap-4">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-green-400 to-emerald-600 flex items-center justify-center text-black font-black text-lg shadow-lg shadow-green-500/25">
-              P
-            </div>
-            <div>
-              <h1 className="text-lg font-black tracking-tight text-white leading-none">
-                Entrenamiento de <span className="text-green-400">Memoria</span>
-              </h1>
-              <p className="text-[10px] uppercase tracking-[0.25em] text-neutral-500 font-medium mt-0.5">
-                Números · Span {span} · {phase ? PHASE_LABELS[phase] || phase : ""}
-              </p>
-            </div>
-          </div>
-          <button onClick={handleBack} className="btn btn-ghost text-xs">
-            ← Volver
-          </button>
-        </div>
-      </header>
-
-      {/* Main content */}
-      <main className="relative z-10 max-w-[600px] mx-auto px-6 py-12">
-        {/* Error banner */}
-        {(error || gameError) && (
-          <div className="mb-6 p-4 bg-red-500/[0.08] border border-red-500/20 rounded-2xl flex items-center gap-3" style={{ animation: "fadeInUp 0.3s ease-out" }}>
-            <span className="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center text-red-400 text-sm">✕</span>
-            <p className="text-sm text-red-400">{error || gameError}</p>
-          </div>
-        )}
-
+    <GameShell
+      title="Memoria"
+      subtitle={`Span ${span} · ${PHASE_LABELS[phase] || phase || ""}`}
+      icon="🧠"
+      accentColor="green"
+      level={Number(span) || undefined}
+      phase={gamePhase}
+      onBack={handleBack}
+      error={error || gameError}
+      onClearError={() => setError(null)}
+    >
+      <main className="max-w-[600px] mx-auto px-6 py-12">
         {/* ===== IDLE ===== */}
         {gamePhase === "idle" && (
           <div className="text-center" style={{ animation: "fadeInUp 0.6s ease-out both" }}>
             <div className="card p-10 md:p-12">
-              {/* Icon */}
               <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-green-400/20 to-emerald-600/20 border border-green-500/20 flex items-center justify-center text-4xl mx-auto mb-6 shadow-lg shadow-green-500/10">
                 🧠
               </div>
@@ -265,7 +216,7 @@ function MemoryGame({ skillId, onClose }) {
                 Entrenamiento de Memoria
               </h2>
               <p className="text-neutral-400 text-sm leading-relaxed max-w-md mx-auto mb-8">
-                Te mostraremos secuencias de números para que las recuerdes y repitas en orden.
+                Te mostraremos secuencias de números para que los recuerdes y repitas en orden.
                 Cada ronda aumenta la dificultad. ¿Cuántos números podés recordar?
               </p>
 
@@ -294,7 +245,6 @@ function MemoryGame({ skillId, onClose }) {
         {/* ===== PRESENTING ===== */}
         {gamePhase === "presenting" && numbers.length > 0 && (
           <div className="text-center" style={{ animation: "fadeInUp 0.4s ease-out both" }}>
-            {/* Progress */}
             <div className="mb-6">
               <span className="text-xs text-neutral-500 uppercase tracking-wider">
                 Número {Math.min(presentingIndex + 1, numbers.length)} de {numbers.length}
@@ -307,14 +257,12 @@ function MemoryGame({ skillId, onClose }) {
               </div>
             </div>
 
-            {/* Phase info */}
             <div className="mb-8">
               <span className="text-[11px] text-neutral-500 uppercase tracking-wider">
                 Span {span} · {PHASE_LABELS[phase] || phase}
               </span>
             </div>
 
-            {/* Number display */}
             <div className="card p-12 md:p-16" style={{ minHeight: "200px" }}>
               {showNumber ? (
                 <div key={presentingIndex} style={{ animation: "fadeIn 0.15s ease-out" }}>
@@ -328,7 +276,6 @@ function MemoryGame({ skillId, onClose }) {
                 </div>
               )}
 
-              {/* Timer dots */}
               <div className="mt-8 flex justify-center gap-1.5">
                 {numbers.map((_, i) => (
                   <div
@@ -402,7 +349,6 @@ function MemoryGame({ skillId, onClose }) {
         {/* ===== FEEDBACK ===== */}
         {gamePhase === "feedback" && lastAttempt && (
           <div className="text-center" style={{ animation: "fadeInUp 0.4s ease-out both" }}>
-            {/* Staircase message */}
             {streakMessage && (
               <div className="card mb-6 p-5 border-green-500/20 bg-green-500/[0.04]">
                 <p className="text-green-400 font-semibold text-sm">{streakMessage}</p>
@@ -412,7 +358,6 @@ function MemoryGame({ skillId, onClose }) {
             <div className="card p-8 md:p-10">
               <h3 className="text-lg font-bold text-white mb-6">Resultados</h3>
 
-              {/* Numbers grid */}
               <div className="flex justify-center gap-3 md:gap-4 flex-wrap mb-8">
                 {numbers.map((num, i) => {
                   const isCorrect = correctPositions[i]
@@ -456,7 +401,6 @@ function MemoryGame({ skillId, onClose }) {
                 })}
               </div>
 
-              {/* Summary stats */}
               <div className="flex items-center justify-center gap-6 mb-8">
                 <div className="flex items-center gap-2 bg-white/[0.03] rounded-xl px-4 py-2.5 border border-white/[0.06]">
                   <span className="text-lg font-bold text-white">{span}</span>
@@ -480,7 +424,6 @@ function MemoryGame({ skillId, onClose }) {
                 </div>
               </div>
 
-              {/* Actions */}
               <div className="flex items-center justify-center gap-4">
                 <button onClick={handleNextRound} className="btn btn-primary text-base px-8">
                   Siguiente ronda
@@ -510,7 +453,6 @@ function MemoryGame({ skillId, onClose }) {
         {gamePhase === "done" && (
           <div className="text-center" style={{ animation: "fadeInUp 0.6s ease-out both" }}>
             <div className="card p-10 md:p-12">
-              {/* Icon */}
               <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-green-400/20 to-emerald-600/20 border border-green-500/20 flex items-center justify-center text-4xl mx-auto mb-6 shadow-lg shadow-green-500/10">
                 🏆
               </div>
@@ -522,7 +464,6 @@ function MemoryGame({ skillId, onClose }) {
                 Tu entrenamiento de memoria ha finalizado. Seguí practicando para mejorar tu span.
               </p>
 
-              {/* Stats */}
               <div className="grid grid-cols-3 gap-4 mb-8">
                 <div className="bg-white/[0.03] rounded-xl p-4 border border-white/[0.06]">
                   <span className="block text-2xl font-black text-white">{roundsCompleted}</span>
@@ -545,7 +486,7 @@ function MemoryGame({ skillId, onClose }) {
           </div>
         )}
       </main>
-    </div>
+    </GameShell>
   )
 }
 

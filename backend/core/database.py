@@ -22,8 +22,30 @@ def _set_sqlite_pragma(dbapi_connection, connection_record):
     cursor.close()
 
 
+def _run_migrations():
+    """Run additive schema migrations for existing databases.
+    SQLModel.metadata.create_all only creates missing tables, not missing columns.
+    """
+    from sqlalchemy import inspect, text
+    try:
+        with engine.connect() as conn:
+            inspector = inspect(conn)
+            # Get existing columns for cognitivesession
+            columns = [c["name"] for c in inspector.get_columns("cognitivesession")]
+            if "consolidated_session_id" not in columns:
+                logger.info("Migrating cognitivesession: adding consolidated_session_id column")
+                conn.execute(text(
+                    "ALTER TABLE cognitivesession ADD COLUMN consolidated_session_id INTEGER REFERENCES session(id) ON DELETE SET NULL"
+                ))
+                conn.commit()
+                logger.info("Migration complete: cognitivesession.consolidated_session_id added")
+    except Exception as e:
+        logger.warning("Migration skipped (table may not exist yet): %s", e)
+
+
 def create_db_and_tables():
     SQLModel.metadata.create_all(engine)
+    _run_migrations()
 
 
 def get_session():

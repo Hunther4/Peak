@@ -48,6 +48,8 @@ export const api = {
         body: JSON.stringify(data),
       }),
     getCount: (skillId) => request(`/sessions/skill/${skillId}/count`),
+    clearAll: () =>
+      request("/sessions/clear-all", { method: "POST" }),
   },
 
   assessments: {
@@ -210,6 +212,50 @@ export const api = {
       request(`/math-thinking/sessions/${sessionId}/consolidate`, { method: "POST" }),
     getState: (sessionId) => request(`/math-thinking/sessions/${sessionId}/state`),
     getHistory: (sessionId) => request(`/math-thinking/sessions/${sessionId}/history`),
+  },
+
+  // --- IQ Practice ---
+  iqPractice: {
+    createSession: (skillId) =>
+      request("/iq-practice/sessions", {
+        method: "POST",
+        body: JSON.stringify({ skill_id: skillId }),
+      }),
+    createRound: (sessionId) =>
+      request(`/iq-practice/sessions/${sessionId}/rounds`, { method: "POST" }),
+    submitAttempt: (roundId, userAnswer) =>
+      request(`/iq-practice/rounds/${roundId}/attempts`, {
+        method: "POST",
+        body: JSON.stringify({ user_answer: userAnswer }),
+      }),
+    consolidate: (sessionId) =>
+      request(`/iq-practice/sessions/${sessionId}/consolidate`, { method: "POST" }),
+    getState: (sessionId) => request(`/iq-practice/sessions/${sessionId}/state`),
+    getHistory: (sessionId) => request(`/iq-practice/sessions/${sessionId}/history`),
+  },
+
+  // --- Cognitive Telemetry (Dual N-Back) ---
+  cognitive: {
+    getSkills: () => request("/cognitive/skills/"),
+    createSkill: (nombre, descripcion, faseIqBase = 100) =>
+      request("/cognitive/skills/", {
+        method: "POST",
+        body: JSON.stringify({ nombre, descripcion, fase_iq_base: faseIqBase }),
+      }),
+    createSession: (cognitiveSkillId) =>
+      request("/cognitive/sessions/", {
+        method: "POST",
+        body: JSON.stringify({ cognitive_skill_id: cognitiveSkillId }),
+      }),
+    uploadTrials: (sessionId, trials) =>
+      request("/cognitive/trials/", {
+        method: "POST",
+        body: JSON.stringify({ session_id: sessionId, trials }),
+      }),
+    finalizeSession: (sessionId) =>
+      request(`/cognitive/sessions/${sessionId}/finalize/`, { method: "POST" }),
+    consolidate: (sessionId) =>
+      request(`/cognitive/sessions/${sessionId}/consolidate`, { method: "POST" }),
   },
 }
 

@@ -27,7 +27,7 @@ class Session(SQLModel, table=True):
     timer_elapsed_sec: Optional[int] = None
     what_i_practiced: str = Field(max_length=2000)
     difficulty: int = Field(ge=1, le=5)
-    micro_error_found: str = Field(max_length=1000)
+    micro_error_found: Optional[str] = Field(default=None, max_length=1000)
     correction_applied: Optional[str] = None
     hypothesis_tomorrow: Optional[str] = None
     entry_mode: str = Field(default="quick")  # "quick" | "full"
@@ -215,3 +215,46 @@ class MathThinkingAttempt(SQLModel, table=True):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     round: Optional[MathThinkingRound] = Relationship(back_populates="attempts")
+
+
+class IQPracticeSession(SQLModel, table=True):
+    """Tracks one game session for IQ Practice."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    skill_id: int = Field(foreign_key="skill.id", ondelete="CASCADE", index=True)
+    level: int = Field(default=1, ge=1, le=10)
+    consecutive_correct: int = Field(default=0, ge=0)
+    consecutive_incorrect: int = Field(default=0, ge=0)
+    total_rounds: int = Field(default=0, ge=0)
+    is_active: bool = Field(default=True)
+    best_level: int = Field(default=1, ge=1, le=10)
+    consolidated_session_id: Optional[int] = Field(default=None, foreign_key="session.id", ondelete="SET NULL")
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    rounds: list["IQPracticeRound"] = Relationship(back_populates="session")
+
+
+class IQPracticeRound(SQLModel, table=True):
+    """A single puzzle in an IQ Practice session."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    session_id: int = Field(foreign_key="iqpracticesession.id", ondelete="CASCADE", index=True)
+    level: int
+    puzzle_type: str  # number_sequence | verbal_analogy | logical | pattern
+    question: str
+    options_json: str  # JSON array of 4 strings
+    correct_answer: str  # The correct option text
+    explanation: str
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    session: Optional[IQPracticeSession] = Relationship(back_populates="rounds")
+    attempts: list["IQPracticeAttempt"] = Relationship(back_populates="round")
+
+
+class IQPracticeAttempt(SQLModel, table=True):
+    """A user's answer submission for an IQ Practice round."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    round_id: int = Field(foreign_key="iqpracticeround.id", ondelete="CASCADE", index=True)
+    user_answer: str
+    correct: bool
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    round: Optional[IQPracticeRound] = Relationship(back_populates="attempts")

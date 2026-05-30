@@ -9,13 +9,14 @@ sys.path.insert(0, str(Path(__file__).parent))
 from sqlmodel import Session, select
 from core.database import engine, create_db_and_tables
 from models.models import Skill, AiModel
+from models.cognitive_models import CognitiveSkill
 
 SKILLS = [
     {
         "slug": "iq-practice",
         "name": "Práctica de IQ",
         "domain": "cognitive",
-        "skill_type": "placeholder",
+        "skill_type": "iq_practice",
         "config_path": "skills/iq-practice.yaml",
         "current_level": 1.0
     },
@@ -33,6 +34,14 @@ SKILLS = [
         "domain": "cognitive",
         "skill_type": "memory_number",
         "config_path": "skills/memory-number.yaml",
+        "current_level": 1.0
+    },
+    {
+        "slug": "dual-n-back",
+        "name": "Dual N-Back",
+        "domain": "cognitive",
+        "skill_type": "dual_n_back",
+        "config_path": "skills/dual-n-back.yaml",
         "current_level": 1.0
     }
 ]
@@ -63,19 +72,44 @@ def seed_models():
         db.commit()
         print(f"[+] {len(MODELS)} modelos insertados.")
 
+COGNITIVE_SKILLS = [
+    {
+        "nombre": "Dual N-Back",
+        "descripcion": "Entrenamiento de memoria de trabajo con estímulos visuales y auditivos simultáneos. Basado en Jaeggi et al. (2008).",
+        "fase_iq_base": 100
+    }
+]
+
+def seed_cognitive_skills():
+    """Seed cognitive skills if DB is empty."""
+    with Session(engine) as db:
+        existing = db.exec(select(CognitiveSkill).limit(1)).first()
+        if existing:
+            return
+        for cs in COGNITIVE_SKILLS:
+            skill = CognitiveSkill(**cs)
+            db.add(skill)
+            print(f"[+] CognitiveSkill creada: {cs['nombre']}")
+        db.commit()
+
 def seed():
     create_db_and_tables()
+    seed_cognitive_skills()
     with Session(engine) as db:
         for skill_data in SKILLS:
             existing = db.exec(
                 select(Skill).where(Skill.slug == skill_data["slug"])
             ).first()
-            if not existing:
+            if existing:
+                # Upsert: update fields in case config changed
+                for key, value in skill_data.items():
+                    setattr(existing, key, value)
+                db.add(existing)
+                print(f"[~] Skill actualizada: {skill_data['name']}")
+            else:
                 skill = Skill(**skill_data)
                 db.add(skill)
                 print(f"[+] Skill creada: {skill_data['name']}")
-            else:
-                print(f"[i] Skill ya existe: {skill_data['name']}")
         db.commit()
     seed_models()
     print("Seed completado.")

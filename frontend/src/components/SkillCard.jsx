@@ -1,17 +1,14 @@
 import { useState, memo } from 'react';
 
-const SkillCard = memo(function SkillCard({ summary, onSkillClick, onMathClick }) {
+const SkillCard = memo(function SkillCard({ summary, onPractice }) {
   const { skill, total_sessions, sessions_this_week, streak_days, last_assessment } = summary;
   const [isHovered, setIsHovered] = useState(false);
 
-  const isMemoryNumber = skill.skill_type === "memory_number";
-  const isMathThinking = skill.skill_type === "problem_set";
+  const isGameSkill = ["memory_number", "problem_set", "dual_n_back", "iq_practice"].includes(skill.skill_type);
 
   const handleClick = () => {
-    if (isMemoryNumber && onSkillClick) {
-      onSkillClick(skill.id)
-    } else if (isMathThinking && onMathClick) {
-      onMathClick(skill.id)
+    if (onPractice && isGameSkill) {
+      onPractice(skill.id, skill.skill_type)
     }
   }
 
@@ -22,13 +19,13 @@ const SkillCard = memo(function SkillCard({ summary, onSkillClick, onMathClick }
 
   return (
     <div
-      className={`card group relative overflow-hidden hover:border-green-500/30 transition-all duration-500 hover:-translate-y-2 ${isMemoryNumber || isMathThinking ? "cursor-pointer" : ""}`}
+      className={`card group relative overflow-hidden hover:border-green-500/30 transition-all duration-500 hover:-translate-y-2 ${isGameSkill ? "cursor-pointer" : ""}`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       onClick={handleClick}
-      role={isMemoryNumber || isMathThinking ? "button" : undefined}
-      tabIndex={isMemoryNumber || isMathThinking ? 0 : undefined}
-      onKeyDown={isMemoryNumber || isMathThinking ? (e) => { if (e.key === "Enter" || e.key === " ") handleClick() } : undefined}
+      role={isGameSkill ? "button" : undefined}
+      tabIndex={isGameSkill ? 0 : undefined}
+      onKeyDown={isGameSkill ? (e) => { if (e.key === "Enter" || e.key === " ") handleClick() } : undefined}
     >
       {/* Ambient glow layers */}
       <div className="absolute -right-16 -top-16 w-48 h-48 bg-green-500/[0.04] rounded-full blur-3xl group-hover:bg-green-500/[0.08] transition-all duration-700" style={{ animation: isHovered ? 'mesh-shift 10s ease-in-out infinite' : 'none' }} />
@@ -108,6 +105,27 @@ const SkillCard = memo(function SkillCard({ summary, onSkillClick, onMathClick }
             <div className="mt-4 flex items-center justify-between bg-white/[0.03] rounded-xl px-4 py-3 border border-white/[0.06] transition-all duration-300 hover:border-green-500/20 hover:bg-white/[0.04] group-hover:border-green-500/10">
               <span className="text-[11px] text-neutral-500 uppercase tracking-wider">Última evaluación</span>
               <span className="text-lg font-bold text-white">{last_assessment.score} <span className="text-neutral-500 font-normal text-sm">pts</span></span>
+            </div>
+          )}
+
+          {/* Practice CTA */}
+          {onPractice && (
+            <div className="mt-5 space-y-2">
+              <button
+                onClick={(e) => { e.stopPropagation(); onPractice(skill.id, skill.skill_type) }}
+                className="w-full py-3 px-4 rounded-xl text-sm font-bold text-black bg-gradient-to-r from-green-400 to-emerald-500 hover:from-green-300 hover:to-emerald-400 transition-all duration-200 shadow-lg shadow-green-500/25 hover:shadow-green-500/40 active:scale-[0.98]"
+              >
+                Practicar ahora
+              </button>
+              {isGameSkill ? (
+                <span className="block text-[10px] text-green-500/60 text-center uppercase tracking-wider">
+                  ⚡ Juego interactivo
+                </span>
+              ) : (
+                <span className="block text-[10px] text-amber-400/50 text-center uppercase tracking-wider">
+                  📋 Práctica guiada
+                </span>
+              )}
             </div>
           )}
         </div>

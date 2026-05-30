@@ -1,6 +1,7 @@
 import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import Session, select
+from models.models import Skill as StandardSkill
 
 from services.cognitive_service import calcular_escalera_psicometrica
 from models.cognitive_models import CognitiveSkill, CognitiveSession, CognitiveTrial
@@ -222,3 +223,105 @@ class TestCognitiveAuth:
         """GIVEN X-API-Key correcto WHEN GET skills THEN 200."""
         resp = client.get("/api/cognitive/skills/", headers=auth_headers)
         assert resp.status_code == 200
+
+
+# ============================================================================
+# 4. PRUEBAS DE CONSOLIDACIÓN: Creación de PracticeSession desde CognitiveSession
+# ============================================================================
+
+def seed_dual_n_back_skill(session):
+    """Crea el skill estándar Dual N-Back si no existe."""
+    from models.models import Skill
+    existing = session.exec(select(Skill).where(Skill.skill_type == "dual_n_back")).first()
+    if existing:
+        return existing
+    skill = Skill(
+        slug="dual-n-back",
+        name="Dual N-Back",
+        domain="cognitive",
+        skill_type="dual_n_back",
+        config_path="skills/dual-n-back.yaml",
+        current_level=1.0,
+    )
+    session.add(skill)
+    session.commit()
+    session.refresh(skill)
+    return skill
+
+
+def create_cog_session_with_trials(client, cog_skill_id, trial_count=10):
+    """Helper: crea CognitiveSession con N trials."""
+    session_resp = client.post("/api/cognitive/sessions/", json={"cognitive_skill_id": cog_skill_id})
+    assert session_resp.status_code == 201
+    session_id = session_resp.json()["id"]
+
+    trials = [
+        {"estimulo": f"S{i}", "respuesta_esperada": "A", "respuesta_usuario": "A",
+         "es_correcto": True, "tiempo_reaccion_ms": 300}
+        for i in range(trial_count)
+    ]
+    client.post("/api/cognitive/trials/", json={"session_id": session_id, "trials": trials})
+
+    return session_id
+
+
+def test_consolidate_creates_practice_session(client, cog_skill, session):
+    """POST /cognitive/sessions/{id}/consolidate crea un PracticeSession."""
+    seed_dual_n_back_skill(session)
+    session_id = create_cog_session_with_trials(client, cog_skill.id, trial_count=12)
+
+    resp = client.post(f"/api/cognitive/sessions/{session_id}/consolidate")
+    assert resp.status_code == 201
+    data = resp.json()
+    assert "practice_session_id" in data
+    assert data["cognitive_session_id"] == session_id
+
+    # Verificar que el PracticeSession existe en la DB
+    from models.models import Session as PracticeSession
+    ps = session.get(PracticeSession, data["practice_session_id"])
+    assert ps is not None
+    assert ps.skill_id is not None
+    assert ps.what_i_practiced is not None
+    assert ps.duration_minutes >= 10
+
+
+def test_consolidate_rejects_insufficient_trials(client, cog_skill, session):
+    """Consolidate con <10 trials retorna 400."""
+    seed_dual_n_back_skill(session)
+    session_id = create_cog_session_with_trials(client, cog_skill.id, trial_count=3)
+
+    resp = client.post(f"/api/cognitive/sessions/{session_id}/consolidate")
+    assert resp.status_code == 400
+    assert "trials" in resp.json()["detail"].lower()
+
+
+def test_consolidate_updates_consolidated_session_id(client, cog_skill, session):
+    """Consolidate setea consolidated_session_id en CognitiveSession."""
+    seed_dual_n_back_skill(session)
+    session_id = create_cog_session_with_trials(client, cog_skill.id, trial_count=15)
+
+    resp = client.post(f"/api/cognitive/sessions/{session_id}/consolidate")
+    assert resp.status_code == 201
+
+    cs = session.get(CognitiveSession, session_id)
+    assert cs is not None
+    assert cs.consolidated_session_id is not None
+
+
+def test_consolidate_session_not_found(client):
+    """Consolidate con session_id inexistente retorna 404."""
+    resp = client.post("/api/cognitive/sessions/99999/consolidate")
+    assert resp.status_code == 404
+
+
+def test_consolidate_multiples(client, cog_skill, session):
+    """Dos CognitiveSessions distintas pueden consolidarse cada una."""
+    seed_dual_n_back_skill(session)
+    id1 = create_cog_session_with_trials(client, cog_skill.id, 12)
+    id2 = create_cog_session_with_trials(client, cog_skill.id, 14)
+
+    r1 = client.post(f"/api/cognitive/sessions/{id1}/consolidate")
+    r2 = client.post(f"/api/cognitive/sessions/{id2}/consolidate")
+    assert r1.status_code == 201
+    assert r2.status_code == 201
+    assert r1.json()["practice_session_id"] != r2.json()["practice_session_id"]

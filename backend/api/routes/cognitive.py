@@ -1,3 +1,4 @@
+import json
 import logging
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlmodel import Session, select
@@ -6,6 +7,7 @@ from pydantic import BaseModel, Field
 
 from core.database import get_session
 from models.cognitive_models import CognitiveSkill, CognitiveSession, CognitiveTrial
+from models.models import Session as PracticeSession, Skill
 from services.cognitive_service import finalizar_session, crear_session
 from core.limiter import limiter, get_rate_limit_str
 
@@ -126,6 +128,69 @@ def upload_cognitive_trials(
     
     db.commit()
     return {"status": "success", "count": len(db_trials)}
+
+
+@router.post("/sessions/{session_id}/consolidate", status_code=201)
+def consolidate_cognitive_session(
+    session_id: int,
+    db: Session = Depends(get_session)
+):
+    """Consolida una CognitiveSession creando un PracticeSession para la timeline.
+    Valida mínimo 10 trials, crea PracticeSession con session_data tipo 'dual_n_back',
+    vincula mediante consolidated_session_id y marca is_active=false."""
+    cognitive_session = db.get(CognitiveSession, session_id)
+    if not cognitive_session:
+        raise HTTPException(status_code=404, detail="CognitiveSession no encontrada")
+
+    # Count trials
+    trials = db.exec(
+        select(CognitiveTrial).where(CognitiveTrial.session_id == session_id)
+    ).all()
+    if len(trials) < 10:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Minimum 10 trials required before consolidation (found {len(trials)})"
+        )
+
+    # Find the standard Dual N-Back skill by skill_type
+    skill = db.exec(
+        select(Skill).where(Skill.skill_type == "dual_n_back")
+    ).first()
+    if not skill:
+        raise HTTPException(status_code=404, detail="Dual N-Back skill not found — run seed.py first")
+
+    session_data = {
+        "type": "dual_n_back",
+        "n_level": cognitive_session.nivel_n_alcanzado,
+        "accuracy": cognitive_session.tasa_precision,
+        "trials_count": len(trials),
+        "cognitive_session_id": cognitive_session.id,
+    }
+
+    practice_session = PracticeSession(
+        skill_id=skill.id,
+        what_i_practiced=f"Dual N-Back — N {cognitive_session.nivel_n_alcanzado}, {len(trials)} trials",
+        micro_error_found=f"Precisión: {cognitive_session.tasa_precision:.0%}, RT: {cognitive_session.tiempo_reaccion_promedio_ms:.0f}ms",
+        difficulty=3,
+        entry_mode="quick",
+        duration_minutes=max(10, len(trials) * 2),
+        session_data=json.dumps(session_data),
+    )
+    db.add(practice_session)
+    db.commit()
+    db.refresh(practice_session)
+
+    cognitive_session.consolidated_session_id = practice_session.id
+    db.add(cognitive_session)
+    db.commit()
+
+    return {
+        "status": "consolidated",
+        "practice_session_id": practice_session.id,
+        "cognitive_session_id": cognitive_session.id,
+        "trials_count": len(trials),
+        "n_level": cognitive_session.nivel_n_alcanzado,
+    }
 
 
 @router.post("/sessions/{session_id}/finalize/")

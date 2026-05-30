@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { api } from '../api/client';
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
@@ -50,13 +51,8 @@ export const StatusIndicator = () => {
 
       let aiStatus = 'checking';
       try {
-        const res = await fetch(`${BASE_URL}/models/status`);
-        if (res.ok) {
-          const data = await res.json();
-          aiStatus = data.mode === 'api' ? 'ok' : 'local';
-        } else {
-          aiStatus = 'error';
-        }
+        const data = await api.models.getStatus();
+        aiStatus = data.mode === 'api' ? 'ok' : 'local';
       } catch {
         aiStatus = 'error';
       }

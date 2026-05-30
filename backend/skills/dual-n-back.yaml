@@ -1,0 +1,15 @@
+slug: dual-n-back
+name: Dual N-Back
+domain: cognitive
+skill_type: dual_n_back
+description: "Entrenamiento de memoria de trabajo con estímulos visuales (posición en grilla 3x3) y auditivos (letras) simultáneos. Basado en Jaeggi et al. (2008)."
+n_back:
+  min_n: 1
+  max_n: 9
+  default_n: 2
+  trials_per_block: 20
+  stimulus_duration_ms: 500
+  inter_stimulus_interval_ms: 2500
+  visual_positions: 9  # grilla 3x3
+  auditory_letters: ["A", "B", "C", "D", "E", "F", "G", "H"]
+  match_proportion: 0.33  # ~33% de los trials son match

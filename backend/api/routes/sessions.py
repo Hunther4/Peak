@@ -178,7 +178,7 @@ class SessionCreate(BaseModel):
     duration_minutes: int
     what_i_practiced: str = Field(max_length=2000)
     difficulty: int
-    micro_error_found: str = Field(max_length=1000)
+    micro_error_found: Optional[str] = Field(default=None, max_length=1000)
     correction_applied: Optional[str] = Field(default=None, max_length=2000)
     hypothesis_tomorrow: Optional[str] = Field(default=None, max_length=2000)
     entry_mode: Literal["quick", "full"] = "quick"
@@ -228,8 +228,8 @@ def create_session(request: Request, data: SessionCreate, db: Session = Depends(
     if not data.what_i_practiced.strip() or len(data.what_i_practiced.strip()) < MIN_PRACTICE_LENGTH:
 
         raise HTTPException(status_code=400, detail=f"what_i_practiced debe tener al menos {MIN_PRACTICE_LENGTH} caracteres")
-    if not data.micro_error_found.strip():
-        raise HTTPException(status_code=400, detail="micro_error_found es obligatorio")
+    if data.micro_error_found is not None and not data.micro_error_found.strip():
+        raise HTTPException(status_code=400, detail="micro_error_found no puede estar vacío")
 
     # Validar session_data
     if data.session_data is not None and not isinstance(data.session_data, dict):
@@ -272,6 +272,34 @@ def create_session(request: Request, data: SessionCreate, db: Session = Depends(
     background_executor.submit(_process_session_background, session.id, data.skill_id, onboarding)
 
     return session
+
+
+@router.post("/clear-all", status_code=200)
+def clear_all_practice_data():
+    """Elimina todos los registros de práctica: sesiones, juegos, evaluaciones, etc.
+    
+    Mantiene skills, perfil de usuario, y configuración. Pensado para el botón
+    'Limpiar registros' del frontend.
+    """
+    from sqlalchemy import text as sa_text
+    
+    tables_to_clear = [
+        "session", "mentalrep", "challenge", "assessment",
+        "memorynumbersession", "memorynumberround", "memorynumberattempt",
+        "maththinkingsession", "maththinkinground", "maththinkingattempt",
+        "iqpracticesession", "iqpracticeround", "iqpracticeattempt",
+        "cognitivesession", "cognitivetrial",
+    ]
+    
+    counts = {}
+    with engine.connect() as conn:
+        for table in tables_to_clear:
+            result = conn.execute(sa_text(f"DELETE FROM {table}"))
+            counts[table] = result.rowcount
+        conn.commit()
+    
+    logger.info("Datos de práctica limpiados: %s", counts)
+    return {"status": "ok", "deleted": counts}
 
 
 @router.get("/skill/{skill_id}/count")

@@ -1,5 +1,29 @@
 slug: iq-practice
 name: Práctica de IQ
 domain: cognitive
-skill_type: placeholder
-# Placeholder — próximamente
+skill_type: iq_practice
+description: "Ejercicios de inteligencia general generados por IA: secuencias numéricas, analogías verbales, puzzles lógicos y reconocimiento de patrones. Escalera adaptativa basada en precisión."
+levels:
+  1: {label: básico, types: [number_sequence, verbal_analogy], difficulty: easy}
+  2: {label: elemental, types: [number_sequence, verbal_analogy, logical], difficulty: easy}
+  3: {label: intermedio, types: [number_sequence, verbal_analogy, logical], difficulty: medium}
+  4: {label: medio, types: [number_sequence, verbal_analogy, logical, pattern], difficulty: medium}
+  5: {label: avanzado, types: [verbal_analogy, logical, pattern], difficulty: medium}
+  6: {label: desafiante, types: [logical, pattern, number_sequence], difficulty: hard}
+  7: {label: complejo, types: [logical, pattern, verbal_analogy], difficulty: hard}
+  8: {label: superior, types: [pattern, logical, number_sequence], difficulty: hard}
+  9: {label: experto, types: [logical, pattern, verbal_analogy, number_sequence], difficulty: expert}
+  10: {label: genio, types: [logical, pattern, verbal_analogy, number_sequence], difficulty: expert}
+puzzle_types:
+  number_sequence:
+    description: "Encontrar el siguiente número en la secuencia según la regla subyacente"
+  verbal_analogy:
+    description: "Completar la analogía: X es a Y como A es a ?"
+  logical:
+    description: "Razonamiento deductivo y resolución de problemas lógicos"
+  pattern:
+    description: "Reconocimiento de patrones y relaciones abstractas"
+assessment_defaults:
+  formal_every_n_sessions: 10
+  min_duration_minutes: 10
+  puzzles_per_assessment: 10

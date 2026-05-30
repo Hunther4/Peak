@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react"
 import { useStore } from "../store/store"
-import AmbientParticles from "./AmbientParticles"
+import { GameShell } from "./layout/GameShell"
 
 function MathThinkingGame({ skillId, onClose }) {
   const {
@@ -34,9 +34,9 @@ function MathThinkingGame({ skillId, onClose }) {
   const handleStart = useCallback(async () => {
     setError(null)
     try {
+      if (!skillId) throw new Error("No se especificó el skill")
       await startMathThinking(skillId)
       await createMathRound()
-      setTimeout(() => inputRef.current?.focus(), 100)
     } catch (e) {
       setError(e.message)
     }
@@ -44,37 +44,25 @@ function MathThinkingGame({ skillId, onClose }) {
 
   // --- Submit answer ---
   const handleSubmit = useCallback(async () => {
-    if (!mathCurrentRound || submitting) return
-    const trimmed = userAnswer.trim()
-    if (!trimmed) {
-      setError("Ingresá un número válido")
-      return
-    }
-    const normalized = trimmed.replace(",", ".")
-    const parsed = parseFloat(normalized)
-    if (isNaN(parsed)) {
-      setError("Ingresá un número válido")
-      return
-    }
+    if (!mathCurrentRound || submitting || !userAnswer.trim()) return
     setSubmitting(true)
     setError(null)
     try {
-      await submitMathAttempt(mathCurrentRound.id, parsed)
-      setProblemsCompleted((prev) => prev + 1)
+      await submitMathAttempt(mathCurrentRound.id, parseFloat(userAnswer))
+      setProblemsCompleted(prev => prev + 1)
     } catch (e) {
       setError(e.message)
     } finally {
       setSubmitting(false)
     }
-  }, [mathCurrentRound, userAnswer, submitting, submitMathAttempt])
+  }, [mathCurrentRound, submitting, userAnswer, submitMathAttempt])
 
   // --- Next problem ---
   const handleNext = useCallback(async () => {
     setError(null)
-    setUserAnswer("")
     try {
       await createMathRound()
-      setTimeout(() => inputRef.current?.focus(), 100)
+      setUserAnswer("")
     } catch (e) {
       setError(e.message)
     }
@@ -111,74 +99,22 @@ function MathThinkingGame({ skillId, onClose }) {
 
   // --- RENDER ---
   return (
-    <div className="min-h-screen bg-neutral-950 relative overflow-hidden">
-      {/* Ambient Background */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        <div
-          className="absolute -top-[40%] -left-[20%] w-[60%] h-[60%] bg-green-500/[0.03] rounded-full blur-[120px]"
-          style={{ animation: "mesh-shift 15s ease-in-out infinite" }}
-        />
-        <div
-          className="absolute -bottom-[30%] -right-[15%] w-[50%] h-[50%] bg-emerald-600/[0.02] rounded-full blur-[100px]"
-          style={{ animation: "mesh-shift 20s ease-in-out infinite reverse" }}
-        />
-        <div
-          className="absolute top-[20%] right-[10%] w-[30%] h-[30%] bg-blue-500/[0.02] rounded-full blur-[80px]"
-          style={{ animation: "mesh-shift 18s ease-in-out infinite" }}
-        />
-        <div
-          className="absolute bottom-[10%] left-[5%] w-[25%] h-[25%] bg-purple-500/[0.015] rounded-full blur-[90px]"
-          style={{ animation: "mesh-shift 22s ease-in-out infinite reverse" }}
-        />
-      </div>
-
-      <AmbientParticles />
-
-      {/* Top bar */}
-      <header
-        className="relative z-10 sticky top-0 border-b border-white/[0.06] glass-panel"
-        style={{ backdropFilter: "blur(24px) saturate(1.8)" }}
-      >
-        <div className="max-w-[1400px] mx-auto flex items-center justify-between px-8 py-4">
-          <div className="flex items-center gap-4">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-400 to-indigo-600 flex items-center justify-center text-black font-black text-lg shadow-lg shadow-blue-500/25">
-              ∑
-            </div>
-            <div>
-              <h1 className="text-lg font-black tracking-tight text-white leading-none">
-                Pensamiento <span className="text-blue-400">Matemático</span>
-              </h1>
-              <p className="text-[10px] uppercase tracking-[0.25em] text-neutral-500 font-medium mt-0.5">
-                Nivel {level}/10 · {problemsCompleted} problemas
-              </p>
-            </div>
-          </div>
-          <button onClick={handleBack} className="btn btn-ghost text-xs">
-            ← Volver
-          </button>
-        </div>
-      </header>
-
-      {/* Main content */}
-      <main className="relative z-10 max-w-[600px] mx-auto px-6 py-12">
-        {/* Error banner */}
-        {displayError && (
-          <div
-            className="mb-6 p-4 bg-red-500/[0.08] border border-red-500/20 rounded-2xl flex items-center gap-3"
-            style={{ animation: "fadeInUp 0.3s ease-out" }}
-          >
-            <span className="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center text-red-400 text-sm">
-              ✕
-            </span>
-            <p className="text-sm text-red-400">{displayError}</p>
-          </div>
-        )}
-
+    <GameShell
+      title="Pensamiento Matemático"
+      subtitle={`Nivel ${level}/10 · ${problemsCompleted} problemas`}
+      icon="∑"
+      accentColor="blue"
+      level={level}
+      phase={mathPhase === "idle" ? null : mathPhase}
+      onBack={handleBack}
+      error={displayError}
+      onClearError={() => setError(null)}
+    >
+      <main className="max-w-[600px] mx-auto px-6 py-12">
         {/* ===== IDLE ===== */}
         {mathPhase === "idle" && (
           <div className="text-center" style={{ animation: "fadeInUp 0.6s ease-out both" }}>
             <div className="card p-10 md:p-12">
-              {/* Icon */}
               <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-400/20 to-indigo-600/20 border border-blue-500/20 flex items-center justify-center text-4xl mx-auto mb-6 shadow-lg shadow-blue-500/10">
                 🧮
               </div>
@@ -446,7 +382,6 @@ function MathThinkingGame({ skillId, onClose }) {
         {mathPhase === "done" && (
           <div className="text-center" style={{ animation: "fadeInUp 0.6s ease-out both" }}>
             <div className="card p-10 md:p-12">
-              {/* Icon */}
               <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-400/20 to-indigo-600/20 border border-blue-500/20 flex items-center justify-center text-4xl mx-auto mb-6 shadow-lg shadow-blue-500/10">
                 🏆
               </div>
@@ -493,7 +428,7 @@ function MathThinkingGame({ skillId, onClose }) {
           </div>
         )}
       </main>
-    </div>
+    </GameShell>
   )
 }
 

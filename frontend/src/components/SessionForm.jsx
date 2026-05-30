@@ -11,9 +11,9 @@ export default function SessionForm() {
   const [showDetail, setShowDetail] = useState(false);
   const [formData, setFormData] = useState({
     skill_id: '',
-    duration_minutes: 45,
+    duration_minutes: 15,
     what_i_practiced: '',
-    difficulty: 3,
+    difficulty: 1,
     micro_error_found: '',
     correction_applied: '',
     hypothesis_tomorrow: '',
@@ -48,7 +48,7 @@ export default function SessionForm() {
         micro_error_found: '',
         correction_applied: '',
         hypothesis_tomorrow: '',
-        difficulty: 3,
+    difficulty: 1,
       }));
     } catch (err) {
       toast.error('Error: ' + err.message);
@@ -127,7 +127,7 @@ export default function SessionForm() {
         className="w-full flex items-center justify-center gap-1.5 py-2 text-[11px] text-neutral-500 hover:text-neutral-300 transition-colors uppercase tracking-wider"
       >
         <span className={`transition-transform ${showDetail ? 'rotate-180' : ''}`}>▾</span>
-        {showDetail ? 'Ocultar detalle' : 'Agregar detalle'}
+        {showDetail ? 'Ocultar formulario' : 'Registro manual'}
       </button>
 
       {/* Optional detail fields */}
@@ -159,7 +159,7 @@ export default function SessionForm() {
         {isSubmitting ? (
           <Spinner size="md" className="!border-black/30 !border-t-black" />
         ) : (
-          'Registrar sesión'
+          'Empezar sesión'
         )}
       </button>
     </form>

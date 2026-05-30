@@ -1,5 +1,6 @@
 import os
 import logging
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -15,6 +16,7 @@ from core.database import create_db_and_tables
 from api.routes import skills, sessions, assessments, dashboard, books, mental, models, health, profile, cognitive
 from api.routes.memory_game import router as memory_game_router
 from api.routes.math_thinking import router as math_thinking_router
+from api.routes.iq_practice import router as iq_practice_router
 from core.tasks import shutdown_executor
 from core.auth import api_key_manager, auth_middleware
 
@@ -52,7 +54,8 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Peak Practice API", version="1.0.0", lifespan=lifespan)
 
-app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+_BASE = Path(__file__).resolve().parent
+app.mount("/uploads", StaticFiles(directory=str(_BASE / "uploads")), name="uploads")
 
 app.add_middleware(
     CORSMiddleware,
@@ -83,6 +86,7 @@ app.include_router(profile.router, prefix="/api", tags=["Profile"])
 app.include_router(memory_game_router, prefix="/api/memory-game", tags=["memory-game"])
 app.include_router(math_thinking_router, prefix="/api/math-thinking", tags=["math-thinking"])
 app.include_router(cognitive.router, prefix="/api/cognitive", tags=["Cognitive"])
+app.include_router(iq_practice_router, prefix="/api/iq-practice", tags=["IQ Practice"])
 
 
 @app.get("/")
