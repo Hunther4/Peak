@@ -1,4 +1,5 @@
 import logging
+import random
 import uuid
 from datetime import datetime, timezone
 from typing import List, Optional
@@ -141,8 +142,8 @@ def get_curriculum_subtopics(user_id: int = 1, session: Session = Depends(get_se
             "name": sub.name,
             "slug": sub.slug,
             "description": sub.description,
-            "mastery": round(state.mastery_score, 2) if state else 0.10,
-            "leitner_box": state.leitner_box if state else 1,
+            "mastery": round(state.mastery_score, 2) if (state and state.total_attempts > 0) else 0.0,
+            "leitner_box": state.leitner_box if (state and state.total_attempts > 0) else 1,
             "attempts": state.total_attempts if state else 0,
         })
     return {"subtopics": results}
@@ -166,7 +167,7 @@ def start_study_session(req: StartStudySessionRequest, user_id: int = 1, session
     )
     session.add(study_session)
 
-    # Selección de preguntas
+    # Selección de preguntas con orden aleatorio
     if req.session_mode == "EXAM":
         count = req.question_count or 65
         all_q = session.exec(
@@ -181,29 +182,37 @@ def start_study_session(req: StartStudySessionRequest, user_id: int = 1, session
 
         if count >= 65:
             selected_questions = [q for q, _ in all_q]
+            random.shuffle(selected_questions)
         elif count <= 15:
             quotas = {"Números": 4, "Álgebra y Funciones": 5, "Geometría": 3, "Probabilidad y Estadística": 3}
             selected_questions = []
             for eje, q_target in quotas.items():
                 eje_pool = [q for q, e_name in all_q if e_name == eje]
+                random.shuffle(eje_pool)
                 selected_questions.extend(eje_pool[:q_target])
+            random.shuffle(selected_questions)
         elif count <= 30:
             quotas = {"Números": 7, "Álgebra y Funciones": 10, "Geometría": 7, "Probabilidad y Estadística": 6}
             selected_questions = []
             for eje, q_target in quotas.items():
                 eje_pool = [q for q, e_name in all_q if e_name == eje]
+                random.shuffle(eje_pool)
                 selected_questions.extend(eje_pool[:q_target])
+            random.shuffle(selected_questions)
         else:
-            selected_questions = [q for q, _ in all_q[:count]]
+            all_shuffled = [q for q, _ in all_q]
+            random.shuffle(all_shuffled)
+            selected_questions = all_shuffled[:count]
 
         questions = selected_questions
     else:
         q_query = select(PaesQuestion)
         if subtopic:
             q_query = q_query.where(PaesQuestion.subtopic_id == subtopic.id)
-        pool = session.exec(q_query).all()
+        pool = list(session.exec(q_query).all())
         if not pool:
             raise HTTPException(status_code=400, detail="No hay preguntas disponibles para este subtema")
+        random.shuffle(pool)
         questions = pool[: (req.question_count or 10)]
 
     # Mapear preguntas para el frontend (sin revelar la solución correcta)

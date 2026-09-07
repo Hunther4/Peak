@@ -1,9 +1,10 @@
-﻿"""
+"""
 Seed oficial PAES M1 para Peak.
 Puebla el currículum oficial DEMRE M1 2026 y las 65 preguntas verificadas en SQLite.
 """
 import json
 import logging
+import random
 from datetime import datetime, timezone
 
 from sqlmodel import Session, select
@@ -122,8 +123,27 @@ def seed_paes_data():
                 )
                 session.add(p)
 
-        # 8. Questions (65 items)
-        for q_data in SEED_DATA.get("questions", []):
+        # 8. Questions (65 items with balanced option keys A, B, C, D)
+        for i, q_data in enumerate(SEED_DATA.get("questions", [])):
+            raw_options = q_data["options"]
+            target_pos = i % 4
+            correct_opt = [o for o in raw_options if o.get("is_correct")][0]
+            distractors = [o for o in raw_options if not o.get("is_correct")]
+            # Deterministic pseudo-random shuffle per question id
+            rng = random.Random(q_data["id"])
+            rng.shuffle(distractors)
+
+            balanced_opts = []
+            d_idx = 0
+            for p in range(4):
+                if p == target_pos:
+                    balanced_opts.append(dict(correct_opt))
+                else:
+                    balanced_opts.append(dict(distractors[d_idx]))
+                    d_idx += 1
+            for p, letter in enumerate(["A", "B", "C", "D"]):
+                balanced_opts[p]["id"] = letter
+
             q = session.get(PaesQuestion, q_data["id"])
             if not q:
                 q = PaesQuestion(
@@ -132,7 +152,7 @@ def seed_paes_data():
                     skill_id=q_data["skill_id"],
                     provenance_type=q_data.get("provenance_type", "ORIGINAL"),
                     stem=q_data["stem"],
-                    options_json=json.dumps(q_data["options"], ensure_ascii=False),
+                    options_json=json.dumps(balanced_opts, ensure_ascii=False),
                     explanation_json=json.dumps(q_data["explanation"], ensure_ascii=False),
                     difficulty_estimate=q_data.get("difficulty_estimate", 0.5),
                     difficulty_source=q_data.get("difficulty_source", "INITIAL_HEURISTIC"),
@@ -144,8 +164,11 @@ def seed_paes_data():
                     source_attribution_json=json.dumps(q_data.get("source_attribution", {}), ensure_ascii=False),
                 )
                 session.add(q)
+            else:
+                q.options_json = json.dumps(balanced_opts, ensure_ascii=False)
+                session.add(q)
 
-        # 9. Initial student learning states for user 1
+        # 9. Initial student learning states for user 1 (starts at 0% mastery)
         now = datetime.now(timezone.utc)
         for subtopic in SEED_DATA.get("subtopics", []):
             existing_state = session.exec(
@@ -160,8 +183,8 @@ def seed_paes_data():
                     id=state_id,
                     user_id=1,
                     subtopic_id=subtopic["id"],
-                    mastery_score=0.45,
-                    confidence_score=0.50,
+                    mastery_score=0.0,
+                    confidence_score=0.0,
                     leitner_box=1,
                     next_review_at=now,
                     fsrs_stability=1.0,
@@ -172,6 +195,10 @@ def seed_paes_data():
                     last_practiced_at=now,
                 )
                 session.add(state)
+            elif existing_state.total_attempts == 0:
+                existing_state.mastery_score = 0.0
+                existing_state.confidence_score = 0.0
+                session.add(existing_state)
 
         session.commit()
         logger.info("PAES M1 dataset seeded successfully into SQLite (65 items, 13 subtopics).")

@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState, useMemo } from "react"
+import React, { useEffect, useState, useMemo } from "react"
 import { useStore } from "../store/store"
 import { FsrsStatusWidget } from "../components/paes/FsrsStatusWidget"
 import { PaesQuestionCard } from "../components/paes/PaesQuestionCard"
@@ -43,6 +43,9 @@ export default function PaesStudy() {
   const [parametricQuestion, setParametricQuestion] = useState(null)
   const [parametricLoading, setParametricLoading] = useState(false)
   const [parametricRevealed, setParametricRevealed] = useState(false)
+  const [parametricTemplate, setParametricTemplate] = useState("PARAM-M1-ALG-01")
+  const [parametricSelected, setParametricSelected] = useState(null)
+  const [parametricEvaluated, setParametricEvaluated] = useState(false)
 
   useEffect(() => {
     fetchPaesFsrsStatus()
@@ -57,9 +60,11 @@ export default function PaesStudy() {
     startPaesSession("PRACTICE", null)
   }
 
-  const handleGenerateParametric = async (templateCode = "PARAM-M1-ALG-01") => {
+  const handleGenerateParametric = async (templateCode = parametricTemplate) => {
     setParametricLoading(true)
     setParametricRevealed(false)
+    setParametricSelected(null)
+    setParametricEvaluated(false)
     try {
       const q = await api.paes.getParametricQuestion(templateCode)
       setParametricQuestion(q)
@@ -418,72 +423,204 @@ export default function PaesStudy() {
                   </p>
                 </div>
 
-                <button
-                  onClick={() => handleGenerateParametric()}
-                  disabled={parametricLoading}
-                  className="px-5 py-2.5 bg-purple-500 hover:bg-purple-400 text-white font-bold text-xs rounded-xl shadow-lg shadow-purple-500/20 transition-all cursor-pointer"
-                >
-                  {parametricLoading ? "Generando..." : "🎲 Generar Nueva Instancia"}
-                </button>
+                <div className="flex items-center gap-3 flex-wrap">
+                  <select
+                    value={parametricTemplate}
+                    onChange={(e) => {
+                      setParametricTemplate(e.target.value)
+                      handleGenerateParametric(e.target.value)
+                    }}
+                    className="bg-neutral-800 border border-white/[0.1] text-neutral-200 text-xs font-bold rounded-xl px-3 py-2.5 focus:outline-none focus:border-purple-500 cursor-pointer"
+                  >
+                    <option value="PARAM-M1-ALG-01">📐 Ecuación Lineal 1° Grado</option>
+                    <option value="PARAM-M1-ALG-02">🔀 Sistema de Ecuaciones 2×2</option>
+                    <option value="PARAM-M1-GEO-01">🔺 Teorema de Pitágoras</option>
+                  </select>
+
+                  <button
+                    onClick={() => handleGenerateParametric()}
+                    disabled={parametricLoading}
+                    className="px-5 py-2.5 bg-purple-500 hover:bg-purple-400 text-white font-bold text-xs rounded-xl shadow-lg shadow-purple-500/20 transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    {parametricLoading ? "Generando..." : "🎲 Nueva Instancia"}
+                  </button>
+                </div>
               </div>
 
               {parametricQuestion ? (
                 <div className="space-y-6">
                   {/* Stem */}
-                  <div className="p-5 rounded-2xl bg-neutral-950/80 border border-white/[0.06] text-sm md:text-base text-neutral-100 leading-relaxed">
+                  <div className="p-5 rounded-2xl bg-neutral-950/80 border border-white/[0.06] text-sm md:text-base text-neutral-100 leading-relaxed font-medium">
                     <MathRenderer text={parametricQuestion.stem} />
                   </div>
 
                   {/* Options */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {parametricQuestion.options.map((opt) => (
-                      <div
-                        key={opt.key}
-                        className={`p-4 rounded-xl border transition-all flex items-center gap-3 ${
-                          parametricRevealed && opt.is_correct
-                            ? "bg-emerald-500/20 border-emerald-500 text-emerald-200 font-bold"
-                            : "bg-neutral-850 border-white/[0.06] text-neutral-200"
-                        }`}
+                    {parametricQuestion.options.map((opt) => {
+                      const optKey = opt.id || opt.key
+                      const isSelected = parametricSelected === optKey
+                      const isCorrect = opt.is_correct
+
+                      let borderBgClass = "bg-neutral-950/60 border-white/[0.08] hover:border-white/[0.2] text-neutral-200"
+                      if (parametricEvaluated || parametricRevealed) {
+                        if (isCorrect) {
+                          borderBgClass = "bg-emerald-500/15 border-emerald-500 text-emerald-300 shadow-sm shadow-emerald-500/20"
+                        } else if (isSelected) {
+                          borderBgClass = "bg-rose-500/15 border-rose-500 text-rose-300"
+                        } else {
+                          borderBgClass = "bg-neutral-950/40 border-white/[0.04] text-neutral-400 opacity-60"
+                        }
+                      } else if (isSelected) {
+                        borderBgClass = "bg-purple-500/15 border-purple-500 text-purple-200 ring-2 ring-purple-500/30"
+                      }
+
+                      return (
+                        <button
+                          key={optKey}
+                          type="button"
+                          disabled={parametricEvaluated || parametricRevealed}
+                          onClick={() => setParametricSelected(optKey)}
+                          className={`p-4 rounded-2xl border transition-all text-left flex items-center gap-3.5 cursor-pointer disabled:cursor-default ${borderBgClass}`}
+                        >
+                          <span className={`w-8 h-8 rounded-xl flex items-center justify-center font-bold text-xs font-mono shrink-0 transition-colors ${
+                            (parametricEvaluated || parametricRevealed) && isCorrect
+                              ? "bg-emerald-500 text-neutral-950"
+                              : (parametricEvaluated || parametricRevealed) && isSelected
+                                ? "bg-rose-500 text-white"
+                                : isSelected
+                                  ? "bg-purple-500 text-white"
+                                  : "bg-neutral-800 text-neutral-400"
+                          }`}>
+                            {optKey}
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <MathRenderer text={opt.content || opt.text} />
+                          </div>
+                          {(parametricEvaluated || parametricRevealed) && isCorrect && (
+                            <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
+                              ✓ Correcta
+                            </span>
+                          )}
+                          {(parametricEvaluated || parametricRevealed) && isSelected && !isCorrect && (
+                            <span className="text-xs font-bold text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded-md border border-rose-500/20">
+                              ✗ Tu elección
+                            </span>
+                          )}
+                          {(parametricEvaluated || parametricRevealed) && opt.distractor_type && (
+                            <span className="text-[10px] font-mono text-neutral-400 bg-neutral-800/80 px-1.5 py-0.5 rounded border border-white/[0.06]">
+                              {opt.distractor_type}
+                            </span>
+                          )}
+                        </button>
+                      )
+                    })}
+                  </div>
+
+                  {/* Actions bar */}
+                  <div className="flex items-center justify-between pt-2 border-t border-white/[0.06] flex-wrap gap-3">
+                    <div className="flex items-center gap-3">
+                      {!parametricEvaluated && !parametricRevealed ? (
+                        <button
+                          type="button"
+                          disabled={!parametricSelected}
+                          onClick={() => {
+                            setParametricEvaluated(true)
+                            setParametricRevealed(true)
+                          }}
+                          className="px-6 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-bold text-xs rounded-xl shadow-lg shadow-emerald-500/20 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          Comprobar Respuesta
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleGenerateParametric()}
+                          className="px-6 py-2.5 bg-purple-500 hover:bg-purple-400 text-white font-bold text-xs rounded-xl shadow-lg shadow-purple-500/20 transition-all cursor-pointer"
+                        >
+                          Siguiente Ejercicio SymPy ➔
+                        </button>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => setParametricRevealed(!parametricRevealed)}
+                        className="text-xs font-bold text-neutral-400 hover:text-white underline cursor-pointer"
                       >
-                        <span className="w-7 h-7 rounded-lg bg-neutral-800 flex items-center justify-center font-bold text-xs font-mono">
-                          {opt.key}
-                        </span>
-                        <div className="flex-1">
-                          <MathRenderer text={opt.content || opt.text} />
-                        </div>
-                        {parametricRevealed && opt.is_correct && (
-                          <span className="text-xs text-emerald-400 font-mono font-bold">✓</span>
+                        {parametricRevealed ? "Ocultar Solución" : "Revelar Explicación Directa"}
+                      </button>
+                    </div>
+
+                    {parametricEvaluated && (
+                      <div className="text-xs font-mono font-bold">
+                        {parametricQuestion.options.find(o => (o.id || o.key) === parametricSelected)?.is_correct ? (
+                          <span className="text-emerald-400 bg-emerald-500/10 px-3 py-1.5 rounded-xl border border-emerald-500/20">
+                            🎉 ¡Respuesta Correcta!
+                          </span>
+                        ) : (
+                          <span className="text-rose-400 bg-rose-500/10 px-3 py-1.5 rounded-xl border border-rose-500/20">
+                            💡 Respuesta Incorrecta — Revisa el paso a paso abajo
+                          </span>
                         )}
                       </div>
-                    ))}
+                    )}
                   </div>
 
-                  {/* Reveal Solution */}
-                  <div className="flex items-center justify-between pt-4">
-                    <button
-                      onClick={() => setParametricRevealed(!parametricRevealed)}
-                      className="text-xs font-bold text-purple-400 hover:text-purple-300 underline cursor-pointer"
-                    >
-                      {parametricRevealed ? "Ocultar Solución" : "Revelar Solución y Distractores"}
-                    </button>
-                  </div>
-
+                  {/* Complete, Unambiguous Step-by-Step Explanation */}
                   {parametricRevealed && parametricQuestion.explanation && (
-                    <div className="p-4 rounded-xl bg-purple-500/10 border border-purple-500/20 text-xs text-neutral-300 leading-relaxed animate-fade-in">
-                      <strong className="text-purple-400 block mb-1">Explicación Paso a Paso:</strong>
-                      <MathRenderer
-                        text={
-                          parametricQuestion.explanation.correct_solution ||
-                          parametricQuestion.explanation.short_summary ||
-                          ""
-                        }
-                      />
+                    <div className="p-6 rounded-2xl bg-neutral-950/80 border border-purple-500/30 text-xs text-neutral-300 leading-relaxed space-y-4 animate-fade-in shadow-xl shadow-purple-950/20">
+                      <div className="flex items-center gap-2 text-purple-400 font-bold text-sm border-b border-white/[0.06] pb-2">
+                        <span>📝</span>
+                        <span>Solucionario Oficial y Desglose Paso a Paso</span>
+                      </div>
+
+                      {/* Step by step */}
+                      {parametricQuestion.explanation.step_by_step && (
+                        <div className="space-y-1.5">
+                          <strong className="text-white block font-bold text-xs">
+                            Paso a paso analítico:
+                          </strong>
+                          <div className="p-3.5 bg-neutral-900/90 rounded-xl border border-white/[0.06] text-neutral-200">
+                            <MathRenderer text={parametricQuestion.explanation.step_by_step} />
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Key concept */}
+                      {parametricQuestion.explanation.key_concept && (
+                        <div className="space-y-1">
+                          <strong className="text-sky-400 block font-bold text-xs">
+                            🎯 Concepto Clave DEMRE:
+                          </strong>
+                          <p className="text-neutral-300 pl-1">
+                            {parametricQuestion.explanation.key_concept}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Frequent mistake */}
+                      {parametricQuestion.explanation.frequent_mistake && (
+                        <div className="space-y-1">
+                          <strong className="text-amber-400 block font-bold text-xs">
+                            ⚠️ Distractor y Error Frecuente:
+                          </strong>
+                          <p className="text-neutral-400 pl-1">
+                            {parametricQuestion.explanation.frequent_mistake}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Short summary */}
+                      {parametricQuestion.explanation.short_summary && (
+                        <div className="pt-2 border-t border-white/[0.04] text-[11px] text-neutral-400 font-mono">
+                          Conclusión: <span className="text-white">{parametricQuestion.explanation.short_summary}</span>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
               ) : (
                 <div className="text-center py-12 text-neutral-500 text-xs">
-                  Hacé clic en &quot;Generar Nueva Instancia&quot; para probar el motor algebraico SymPy.
+                  Hacé clic en &quot;Nueva Instancia&quot; para probar el motor algebraico SymPy.
                 </div>
               )}
             </div>
