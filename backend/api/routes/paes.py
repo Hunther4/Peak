@@ -11,6 +11,7 @@ from sqlmodel import Session, func, select
 from core.database import get_session
 from models.models import ErrorPattern
 from models.paes_models import (
+    PaesAssessmentState,
     PaesEjeTematico,
     PaesLearningState,
     PaesQuestion,
@@ -22,6 +23,7 @@ from models.paes_models import (
     PaesTopic,
 )
 from services.paes.demre_scale import SUBJECT_METADATA, raw_score_to_paes
+from services.paes.irt_engine import ItemParameters, estimate_theta_hybrid
 from services.paes.learning_engine import (
     FSRSState,
     apply_review_capping,
@@ -457,6 +459,68 @@ def finalize_exam(session_id: str, req: FinalizeExamRequest, user_id: int = 1, s
                 "percentage": pct,
             })
 
+    # Motor Psicométrico TRI / IRT (3PL)
+    item_params = []
+    responses_vector = []
+    for q in questions:
+        a_val = q.irt_a if q.irt_a is not None else 1.0
+        if q.irt_b is not None:
+            b_val = q.irt_b
+        else:
+            diff = q.difficulty_estimate if q.difficulty_estimate is not None else 0.5
+            b_val = float(max(-3.0, min(3.0, (diff - 0.5) * 4.0)))
+        c_val = q.irt_c if q.irt_c is not None else 0.20
+        item_params.append(ItemParameters(item_id=q.id, a=a_val, b=b_val, c=c_val))
+
+        ans = answers_map.get(q.id)
+        selected_opt = ans.selected_option if ans else None
+        c_key = None
+        for opt in q.options:
+            k = opt.get("id") or opt.get("key")
+            if opt.get("is_correct"):
+                c_key = k
+                break
+        responses_vector.append(1 if (selected_opt and selected_opt == c_key) else 0)
+
+    irt_est = estimate_theta_hybrid(responses_vector, item_params)
+
+    # Actualizar o persistir PaesAssessmentState
+    target_subj_id = study_session.subject_id
+    if not target_subj_id:
+        subj_obj = session.exec(select(PaesSubject).where(PaesSubject.code == subject_code)).first()
+        target_subj_id = subj_obj.id if subj_obj else "12ff38c7-817d-5fa8-b799-682a805d803c"
+
+    assess_state = session.exec(
+        select(PaesAssessmentState)
+        .where(PaesAssessmentState.user_id == user_id, PaesAssessmentState.subject_id == target_subj_id)
+    ).first()
+
+    if not assess_state:
+        assess_state = PaesAssessmentState(
+            id=f"as-{uuid.uuid4().hex[:12]}",
+            user_id=user_id,
+            subject_id=target_subj_id,
+            theta=round(float(irt_est.theta), 4),
+            theta_se=round(float(irt_est.se), 4),
+            theta_method=irt_est.method,
+            theta_status="CONVERGED" if irt_est.se < 0.6 else "PROVISIONAL",
+            estimated_paes_min=irt_est.paes_min,
+            estimated_paes_max=irt_est.paes_max,
+            total_scored_items_answered=total_items,
+        )
+    else:
+        assess_state.theta = round(float(irt_est.theta), 4)
+        assess_state.theta_se = round(float(irt_est.se), 4)
+        assess_state.theta_method = irt_est.method
+        assess_state.theta_status = "CONVERGED" if irt_est.se < 0.6 else "PROVISIONAL"
+        assess_state.estimated_paes_min = irt_est.paes_min
+        assess_state.estimated_paes_max = irt_est.paes_max
+        assess_state.total_scored_items_answered += total_items
+        assess_state.updated_at = datetime.now(timezone.utc)
+
+    session.add(assess_state)
+    session.commit()
+
     return {
         "session_id": session_id,
         "total_questions": total_items,
@@ -468,6 +532,7 @@ def finalize_exam(session_id: str, req: FinalizeExamRequest, user_id: int = 1, s
         "avg_time_per_question": round(total_time_seconds / total_items) if total_items > 0 else 0,
         "scaled_raw_score": scaled_raw,
         "demre": demre_result,
+        "psychometrics": irt_est.to_dict(),
         "ejes_breakdown": ejes_breakdown,
         "review": review_items,
     }

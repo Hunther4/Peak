@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 from dataclasses import dataclass
 import math
 from typing import Any, Dict, List, Optional, Tuple, Union
@@ -68,7 +68,7 @@ def item_information(
     denominator = ((1.0 - c) ** 2) * p_safe
     return (d ** 2) * (a ** 2) * (numerator / denominator) * q
 
-def test_information(
+def calculate_test_information(
     theta: Union[float, np.ndarray],
     items: List[ItemParameters],
     d: float = D_SCALING,
@@ -83,7 +83,7 @@ def standard_error(
     items: List[ItemParameters],
     d: float = D_SCALING,
 ) -> Union[float, np.ndarray]:
-    info = test_information(theta, items, d)
+    info = calculate_test_information(theta, items, d)
     info_safe = np.maximum(info, 1e-6)
     return 1.0 / np.sqrt(info_safe)
 
@@ -142,7 +142,7 @@ def estimate_theta_eap(
     theta_est = float(np.sum(nodes * posterior))
     var_est = float(np.sum(((nodes - theta_est) ** 2) * posterior))
     se_est = float(np.sqrt(max(var_est, 1e-4)))
-    info = float(test_information(theta_est, items, d))
+    info = float(calculate_test_information(theta_est, items, d))
 
     score, p_min, p_max = theta_to_demre_score(theta_est, se_est)
     return AbilityEstimate(
@@ -193,7 +193,7 @@ def estimate_theta_mle(
         if abs(step) < tol:
             break
 
-    info = float(test_information(theta, items, d))
+    info = float(calculate_test_information(theta, items, d))
     se_est = float(1.0 / np.sqrt(max(info, 1e-5)))
     score, p_min, p_max = theta_to_demre_score(theta, se_est)
 

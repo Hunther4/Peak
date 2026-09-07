@@ -19,6 +19,7 @@ export function PaesExamResults({ onNewExam, onBackToStudy }) {
     total_time_seconds,
     avg_time_per_question,
     demre,
+    psychometrics,
     ejes_breakdown,
     review = [],
   } = paesExamResults
@@ -101,6 +102,32 @@ export function PaesExamResults({ onNewExam, onBackToStudy }) {
             </div>
           </div>
         </div>
+
+        {/* Psychometrics IRT 3PL Card */}
+        {psychometrics && (
+          <div className="mt-4 p-4 rounded-2xl bg-white/[0.03] border border-white/[0.06] flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-indigo-400 font-bold text-sm">
+                θ
+              </div>
+              <div>
+                <div className="text-xs font-bold text-white flex items-center gap-2">
+                  <span>Habilidad Latente IRT (Modelo 3PL)</span>
+                  <span className="px-2 py-0.5 rounded-md bg-indigo-500/20 text-indigo-300 text-[10px] font-mono uppercase font-bold">
+                    {psychometrics.method}
+                  </span>
+                </div>
+                <div className="text-[11px] text-neutral-400 font-mono mt-0.5">
+                  θ = <strong className="text-white">{psychometrics.theta > 0 ? `+${psychometrics.theta}` : psychometrics.theta}</strong> ± {psychometrics.se} (SE) • Información I(θ) = {psychometrics.information}
+                </div>
+              </div>
+            </div>
+            <div className="text-right font-mono">
+              <span className="text-[10px] text-neutral-400 uppercase tracking-wider block">Intervalo Confianza 95%</span>
+              <span className="text-xs font-bold text-indigo-300">{psychometrics.paes_min} - {psychometrics.paes_max} pts</span>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* 4 DEMRE Ejes Thematic Breakdown */}
