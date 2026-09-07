@@ -13,15 +13,42 @@ const TRIALS_PER_BLOCK = 20
 const TOTAL_BLOCKS = 3
 
 function generateSequence(n, length) {
-  const positions = Array.from({ length }, () => Math.floor(Math.random() * TOTAL_POSITIONS))
-  const letters = Array.from({ length }, () => Math.floor(Math.random() * LETTERS.length))
-
+  const positions = new Array(length)
+  const letters = new Array(length)
   const visualTargets = new Set()
   const audioTargets = new Set()
 
+  // First n trials are baseline stimuli (cannot match N steps back)
+  for (let i = 0; i < n; i++) {
+    positions[i] = Math.floor(Math.random() * TOTAL_POSITIONS)
+    letters[i] = Math.floor(Math.random() * LETTERS.length)
+  }
+
+  // From trial n onwards, enforce true targets and true non-targets (~30% probability each)
   for (let i = n; i < length; i++) {
-    if (Math.random() < 0.3) visualTargets.add(i)
-    if (Math.random() < 0.3) audioTargets.add(i)
+    // Visual match
+    if (Math.random() < 0.30) {
+      positions[i] = positions[i - n]
+      visualTargets.add(i)
+    } else {
+      let p
+      do {
+        p = Math.floor(Math.random() * TOTAL_POSITIONS)
+      } while (p === positions[i - n])
+      positions[i] = p
+    }
+
+    // Audio match
+    if (Math.random() < 0.30) {
+      letters[i] = letters[i - n]
+      audioTargets.add(i)
+    } else {
+      let l
+      do {
+        l = Math.floor(Math.random() * LETTERS.length)
+      } while (l === letters[i - n])
+      letters[i] = l
+    }
   }
 
   return { positions, letters, visualTargets, audioTargets }
@@ -241,8 +268,8 @@ function DualNBackGame({ onClose }) {
 
         // Evaluate trial if index >= currentN
         if (index >= currentN) {
-          const isVisMatch = seq.visualTargets.has(index)
-          const isAudMatch = seq.audioTargets.has(index)
+          const isVisMatch = seq.positions[index] === seq.positions[index - currentN]
+          const isAudMatch = seq.letters[index] === seq.letters[index - currentN]
           const visPressed = trialVisPressedRef.current
           const audPressed = trialAudPressedRef.current
           const visCorrect = visPressed === isVisMatch
@@ -303,7 +330,7 @@ function DualNBackGame({ onClose }) {
     if (trialIndexRef.current < currentN) return // Preview phase: inputs ignored
 
     const key = inputKey.toLowerCase()
-    if (key !== "a" && key !== "w" && key !== "l" && key !== "d" && key !== " ") return
+    if (key !== "a" && key !== "w" && key !== "l" && key !== "k" && key !== "d" && key !== " ") return
 
     const rt = Math.round(performance.now() - responseWindowStart.current)
     if (trialRtRef.current === null) {
@@ -314,7 +341,7 @@ function DualNBackGame({ onClose }) {
       trialVisPressedRef.current = true
       setTrialVisPressed(true)
       setLastKeyPress("a")
-    } else if (key === "w" || key === "l") {
+    } else if (key === "w" || key === "l" || key === "k") {
       trialAudPressedRef.current = true
       setTrialAudPressed(true)
       setLastKeyPress("w")
@@ -333,7 +360,7 @@ function DualNBackGame({ onClose }) {
   const handleKeyDown = useCallback((e) => {
     if (e.repeat) return
     const key = e.key.toLowerCase()
-    if (key === "a" || key === "w" || key === "l" || key === "d" || key === " ") {
+    if (key === "a" || key === "w" || key === "l" || key === "k" || key === "d" || key === " ") {
       e.preventDefault()
       handleInput(key)
     }
