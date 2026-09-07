@@ -63,13 +63,16 @@ export const createSkillsSlice = (set, get) => ({
     try {
       const data = await api.dashboard.getTimeline(skillId)
       set({ timeline: data.timeline })
+      if (data.timeline?.some(e => e.ai_fields_status === 'pending')) {
+        get().pollPendingAudits()
+      }
     } catch (e) {
       set({ error: e.message })
     }
   },
 
   /** Poll timeline until no entries are pending (or timeout). */
-  pollPendingAudits: (maxMs = 30000, intervalMs = 2000) => {
+  pollPendingAudits: (maxMs = 60000, intervalMs = 2500) => {
     const start = Date.now()
     const tick = () => {
       const { timeline } = get()

@@ -1,7 +1,7 @@
 import logging
 from typing import List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from core.ai import generate_structured_json
 from core.rag import query_books
@@ -17,6 +17,20 @@ class AuditResult(BaseModel):
     reasoning: str
     domain_specific_notes: Optional[str] = None
     book_citations: List[str]
+
+    @field_validator("confidence", mode="before")
+    @classmethod
+    def normalize_confidence(cls, v):
+        if isinstance(v, (int, float)) and v > 1.0:
+            return min(1.0, max(0.0, float(v) / 100.0))
+        return v
+
+    @field_validator("score", mode="before")
+    @classmethod
+    def normalize_score(cls, v):
+        if isinstance(v, (int, float)):
+            return int(round(min(100, max(1, float(v)))))
+        return v
 
 def audit_session(session_data: dict, domain: str, onboarding_mode: bool) -> AuditResult:
     """

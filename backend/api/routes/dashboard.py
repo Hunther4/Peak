@@ -119,6 +119,13 @@ def get_timeline(
     timeline = []
     for s in sessions:
         skill = s.skill  # Ya cargado por selectinload — 0 queries extra
+        if s.ai_fields_status == "pending":
+            try:
+                from core.tasks import background_executor
+                from api.routes.sessions import _process_session_background
+                background_executor.submit(_process_session_background, s.id, s.skill_id, s.onboarding_mode)
+            except Exception:
+                pass
         timeline.append({
             "type": "session",
             "id": s.id,

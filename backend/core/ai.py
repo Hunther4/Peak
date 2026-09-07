@@ -29,7 +29,7 @@ def get_client() -> OpenAI:
     if _client is None:
         with _client_lock:
             if _client is None:
-                base_url = os.getenv("LM_STUDIO_BASE_URL", "http://localhost:1234/v1")
+                base_url = os.getenv("LM_STUDIO_BASE_URL", "http://127.0.0.1:1234/v1")
                 api_key = os.getenv("LM_STUDIO_API_KEY", "lm-studio")
                 timeout_str = os.getenv("LM_STUDIO_TIMEOUT", "60")
                 try:
@@ -38,6 +38,18 @@ def get_client() -> OpenAI:
                     timeout = 60
                 _client = OpenAI(base_url=base_url, api_key=api_key, timeout=timeout)
     return _client
+
+
+def _get_active_lm_model(client: OpenAI) -> str:
+    """Detects active non-embedding model loaded in LM Studio, fallback to local-model."""
+    try:
+        models = client.models.list()
+        chat_models = [m.id for m in models.data if "embed" not in m.id.lower()]
+        if chat_models:
+            return chat_models[0]
+    except Exception:
+        pass
+    return "local-model"
 
 
 
@@ -78,8 +90,9 @@ def generate_structured_json(system_prompt: str, user_prompt: str, response_mode
             augmented_system = _build_augmented_system(system_prompt, response_model)
 
             client = get_client()
+            active_model = _get_active_lm_model(client)
             response = client.chat.completions.create(
-                model="local-model",  # LM Studio ignora el nombre del modelo
+                model=active_model,
                 messages=[
                     {"role": "system", "content": augmented_system},
                     {"role": "user", "content": user_prompt}

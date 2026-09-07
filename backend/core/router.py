@@ -67,7 +67,13 @@ def _build_augmented_system(system_prompt: str, response_model: Type[T]) -> str:
         t = v.get("type", "any")
         if t == "boolean":
             example_values[k] = True
-        elif t == "number" or t == "integer":
+        elif t == "number":
+            max_val = v.get("maximum", v.get("le"))
+            if max_val is not None and max_val <= 1.0:
+                example_values[k] = 0.85
+            else:
+                example_values[k] = 50.0
+        elif t == "integer":
             example_values[k] = 50
         elif t == "array":
             example_values[k] = []
@@ -228,15 +234,17 @@ def _is_lm_studio_reachable() -> bool:
     """Quick TCP check (2s) — is LM Studio listening? Avoids 60s timeout waste."""
     import socket
     from urllib.parse import urlparse
-    base_url = os.getenv("LM_STUDIO_BASE_URL", "http://localhost:1234/v1")
+    base_url = os.getenv("LM_STUDIO_BASE_URL", "http://127.0.0.1:1234/v1")
     parsed = urlparse(base_url)
-    host = parsed.hostname or "localhost"
+    host = parsed.hostname or "127.0.0.1"
     port = parsed.port or 1234
-    try:
-        with socket.create_connection((host, port), timeout=3):
-            return True
-    except (OSError, TimeoutError):
-        return False
+    for candidate in [host, "127.0.0.1", "localhost"]:
+        try:
+            with socket.create_connection((candidate, port), timeout=2):
+                return True
+        except (OSError, TimeoutError):
+            continue
+    return False
 
 
 def _try_lm_studio_with_retry(
