@@ -112,6 +112,13 @@ app = FastAPI(title="Peak Practice API", version="1.0.0", lifespan=lifespan)
 _BASE = Path(__file__).resolve().parent
 app.mount("/uploads", StaticFiles(directory=str(_BASE / "uploads")), name="uploads")
 
+app.middleware("http")(auth_middleware)
+
+# Security and MIME middlewares
+app.add_middleware(UploadsMimeMiddleware)
+app.add_middleware(SecurityHeadersMiddleware)
+
+# CORS middleware — outermost so ALL responses, including auth errors and exceptions, get CORS headers
 cors_env = os.getenv("CORS_ORIGIN", "http://localhost:5173,http://localhost:8081")
 allowed_origins = [o.strip() for o in cors_env.split(",") if o.strip()]
 app.add_middleware(
@@ -120,14 +127,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-app.middleware("http")(auth_middleware)
-
-# Security and MIME middlewares
-app.add_middleware(UploadsMimeMiddleware)
-# Security headers middleware — outermost so even auth 401 responses get headers.
-# Starlette's middleware stack processes the LAST added middleware first (outermost).
-app.add_middleware(SecurityHeadersMiddleware)
 
 
 # Rate limiting — slowapi

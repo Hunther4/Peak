@@ -1,7 +1,7 @@
 import logging
 import uuid
 from datetime import datetime, timezone
-from typing import Optional
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -10,12 +10,14 @@ from sqlmodel import Session, func, select
 from core.database import get_session
 from models.models import ErrorPattern
 from models.paes_models import (
+    PaesEjeTematico,
     PaesLearningState,
     PaesQuestion,
     PaesQuestionAttempt,
     PaesSocraticStep,
     PaesStudySession,
     PaesSubtopic,
+    PaesTopic,
 )
 from services.paes.demre_scale import raw_score_to_paes
 from services.paes.learning_engine import (
@@ -39,6 +41,7 @@ router = APIRouter(prefix="/api/paes", tags=["PAES M1 Adaptive Study"])
 class StartStudySessionRequest(BaseModel):
     session_mode: str = "PRACTICE"  # PRACTICE, LEARN, EXAM, DIAGNOSTIC
     subtopic_slug: Optional[str] = None
+    question_count: Optional[int] = None
 
 class SubmitAttemptRequest(BaseModel):
     session_id: str
@@ -47,6 +50,14 @@ class SubmitAttemptRequest(BaseModel):
     time_spent_seconds: int = Field(default=30, ge=1)
     perceived_confidence: int = Field(default=3, ge=1, le=5)
     mistake_cause: Optional[str] = None
+
+class ExamAnswerItem(BaseModel):
+    question_id: str
+    selected_option: Optional[str] = None
+    time_spent_seconds: int = 0
+
+class FinalizeExamRequest(BaseModel):
+    answers: List[ExamAnswerItem]
 
 class ParametricRequest(BaseModel):
     template_code: str = "PARAM-M1-ALG-01"
@@ -116,7 +127,7 @@ def get_fsrs_status(user_id: int = 1, session: Session = Depends(get_session)):
 @router.get("/curriculum/subtopics")
 def get_curriculum_subtopics(user_id: int = 1, session: Session = Depends(get_session)):
     """Lista los 13 subtemas oficiales M1 con el estado de dominio del estudiante."""
-    subtopics = session.exec(select(PaesSubtopic).order_index(PaesSubtopic.order_index)).all()
+    subtopics = session.exec(select(PaesSubtopic).order_by(PaesSubtopic.order_index)).all()
     results = []
     for sub in subtopics:
         state = session.exec(
@@ -138,7 +149,7 @@ def get_curriculum_subtopics(user_id: int = 1, session: Session = Depends(get_se
 
 @router.post("/study/session/start")
 def start_study_session(req: StartStudySessionRequest, user_id: int = 1, session: Session = Depends(get_session)):
-    """Inicia una sesin de estudio PAES seleccionando preguntas va ZDP J(i)."""
+    """Inicia una sesión de estudio o simulacro de examen PAES M1."""
     subtopic = None
     if req.subtopic_slug:
         subtopic = session.exec(select(PaesSubtopic).where(PaesSubtopic.slug == req.subtopic_slug)).first()
@@ -155,18 +166,49 @@ def start_study_session(req: StartStudySessionRequest, user_id: int = 1, session
     )
     session.add(study_session)
 
-    # Buscar preguntas elegibles
-    q_query = select(PaesQuestion)
-    if subtopic:
-        q_query = q_query.where(PaesQuestion.subtopic_id == subtopic.id)
-    questions = session.exec(q_query).all()
+    # Selección de preguntas
+    if req.session_mode == "EXAM":
+        count = req.question_count or 65
+        all_q = session.exec(
+            select(PaesQuestion, PaesEjeTematico.name)
+            .join(PaesSubtopic, PaesQuestion.subtopic_id == PaesSubtopic.id)
+            .join(PaesTopic, PaesSubtopic.topic_id == PaesTopic.id)
+            .join(PaesEjeTematico, PaesTopic.eje_id == PaesEjeTematico.id)
+        ).all()
 
-    if not questions:
-        raise HTTPException(status_code=400, detail="No hay preguntas disponibles para este subtema")
+        if not all_q:
+            raise HTTPException(status_code=400, detail="No hay preguntas disponibles en el currículum")
 
-    # Mapear preguntas para el frontend (sin la solucin correcta)
+        if count >= 65:
+            selected_questions = [q for q, _ in all_q]
+        elif count <= 15:
+            quotas = {"Números": 4, "Álgebra y Funciones": 5, "Geometría": 3, "Probabilidad y Estadística": 3}
+            selected_questions = []
+            for eje, q_target in quotas.items():
+                eje_pool = [q for q, e_name in all_q if e_name == eje]
+                selected_questions.extend(eje_pool[:q_target])
+        elif count <= 30:
+            quotas = {"Números": 7, "Álgebra y Funciones": 10, "Geometría": 7, "Probabilidad y Estadística": 6}
+            selected_questions = []
+            for eje, q_target in quotas.items():
+                eje_pool = [q for q, e_name in all_q if e_name == eje]
+                selected_questions.extend(eje_pool[:q_target])
+        else:
+            selected_questions = [q for q, _ in all_q[:count]]
+
+        questions = selected_questions
+    else:
+        q_query = select(PaesQuestion)
+        if subtopic:
+            q_query = q_query.where(PaesQuestion.subtopic_id == subtopic.id)
+        pool = session.exec(q_query).all()
+        if not pool:
+            raise HTTPException(status_code=400, detail="No hay preguntas disponibles para este subtema")
+        questions = pool[: (req.question_count or 10)]
+
+    # Mapear preguntas para el frontend (sin revelar la solución correcta)
     frontend_questions = []
-    for q in questions[:10]: # Bloque de hasta 10 preguntas
+    for q in questions:
         opts = [
             {"key": opt["id"] if "id" in opt else opt.get("key"), "content": opt.get("content", opt.get("text"))}
             for opt in q.options
@@ -183,12 +225,163 @@ def start_study_session(req: StartStudySessionRequest, user_id: int = 1, session
 
     session.commit()
 
+    total_len = len(frontend_questions)
+    time_limit = 140 if total_len >= 60 else (65 if total_len >= 30 else 32) if req.session_mode == "EXAM" else None
+
     return {
         "session_id": session_id,
         "session_mode": req.session_mode,
         "subtopic": subtopic.name if subtopic else "General M1",
-        "total_questions": len(frontend_questions),
+        "total_questions": total_len,
         "questions": frontend_questions,
+        "time_limit_minutes": time_limit,
+    }
+
+@router.post("/study/session/{session_id}/finalize_exam")
+def finalize_exam(session_id: str, req: FinalizeExamRequest, user_id: int = 1, session: Session = Depends(get_session)):
+    """Consolida un simulacro de examen PAES M1, calcula puntaje DEMRE 100-1000 y desglose por ejes."""
+    study_session = session.get(PaesStudySession, session_id)
+    if not study_session:
+        raise HTTPException(status_code=404, detail="Sesión de examen no encontrada")
+
+    answers_map = {ans.question_id: ans for ans in req.answers}
+    question_ids = list(answers_map.keys())
+    if not question_ids:
+        raise HTTPException(status_code=400, detail="No se recibieron respuestas para evaluar")
+
+    questions = session.exec(select(PaesQuestion).where(PaesQuestion.id.in_(question_ids))).all()
+
+    # Mapear jerarquía de subtemas y ejes
+    subtopic_ids = {q.subtopic_id for q in questions}
+    subtopics = session.exec(select(PaesSubtopic).where(PaesSubtopic.id.in_(list(subtopic_ids)))).all()
+    sub_map = {s.id: s for s in subtopics}
+
+    topic_ids = {s.topic_id for s in subtopics}
+    topics = session.exec(select(PaesTopic).where(PaesTopic.id.in_(list(topic_ids)))).all()
+    topic_map = {t.id: t for t in topics}
+
+    eje_ids = {t.eje_id for t in topics}
+    ejes = session.exec(select(PaesEjeTematico).where(PaesEjeTematico.id.in_(list(eje_ids)))).all()
+    eje_map = {e.id: e for e in ejes}
+
+    def get_eje_name(q):
+        sub = sub_map.get(q.subtopic_id)
+        if not sub:
+            return "General"
+        top = topic_map.get(sub.topic_id)
+        if not top:
+            return "General"
+        eje = eje_map.get(top.eje_id)
+        return eje.name if eje else "General"
+
+    total_items = len(questions)
+    correct_count = 0
+    incorrect_count = 0
+    unanswered_count = 0
+    total_time_seconds = 0
+
+    ejes_stats = {
+        "Números": {"total": 0, "correct": 0},
+        "Álgebra y Funciones": {"total": 0, "correct": 0},
+        "Geometría": {"total": 0, "correct": 0},
+        "Probabilidad y Estadística": {"total": 0, "correct": 0},
+    }
+
+    review_items = []
+
+    for q in questions:
+        eje_name = get_eje_name(q)
+        if eje_name not in ejes_stats:
+            ejes_stats[eje_name] = {"total": 0, "correct": 0}
+        ejes_stats[eje_name]["total"] += 1
+
+        ans = answers_map.get(q.id)
+        selected_opt = ans.selected_option if ans else None
+        time_spent = ans.time_spent_seconds if ans else 0
+        total_time_seconds += time_spent
+
+        correct_key = None
+        for opt in q.options:
+            k = opt.get("id") or opt.get("key")
+            if opt.get("is_correct"):
+                correct_key = k
+                break
+
+        is_correct = False
+        if selected_opt:
+            if selected_opt == correct_key:
+                is_correct = True
+                correct_count += 1
+                ejes_stats[eje_name]["correct"] += 1
+            else:
+                incorrect_count += 1
+        else:
+            unanswered_count += 1
+
+        # Registrar intento en DB para telemetría
+        attempt_id = f"paes-att-{uuid.uuid4().hex[:12]}"
+        attempt = PaesQuestionAttempt(
+            id=attempt_id,
+            session_id=study_session.id,
+            question_id=q.id,
+            user_id=user_id,
+            selected_option=selected_opt or "OMITIDA",
+            is_correct=is_correct,
+            time_spent_seconds=time_spent,
+            perceived_confidence=3,
+        )
+        session.add(attempt)
+
+        review_items.append({
+            "question_id": q.id,
+            "stem": q.stem,
+            "options": q.options,
+            "selected_option": selected_opt,
+            "correct_option": correct_key,
+            "is_correct": is_correct,
+            "is_unanswered": not bool(selected_opt),
+            "time_spent_seconds": time_spent,
+            "difficulty_estimate": q.difficulty_estimate,
+            "eje_name": eje_name,
+            "subtopic_name": sub_map.get(q.subtopic_id).name if sub_map.get(q.subtopic_id) else "",
+            "explanation": q.explanation,
+        })
+
+    # Escalar puntaje a 60 aciertos válidos oficiales DEMRE
+    scaled_raw = round((correct_count / total_items) * 60) if total_items > 0 else 0
+    demre_result = raw_score_to_paes(scaled_raw, total_valid=60)
+
+    study_session.is_completed = True
+    study_session.completed_at = datetime.now(timezone.utc)
+    study_session.total_items = total_items
+    study_session.correct_items = correct_count
+    session.add(study_session)
+    session.commit()
+
+    ejes_breakdown = []
+    for name, stat in ejes_stats.items():
+        if stat["total"] > 0:
+            pct = round((stat["correct"] / stat["total"]) * 100)
+            ejes_breakdown.append({
+                "name": name,
+                "total": stat["total"],
+                "correct": stat["correct"],
+                "percentage": pct,
+            })
+
+    return {
+        "session_id": session_id,
+        "total_questions": total_items,
+        "correct_count": correct_count,
+        "incorrect_count": incorrect_count,
+        "unanswered_count": unanswered_count,
+        "accuracy_pct": round((correct_count / total_items) * 100) if total_items > 0 else 0,
+        "total_time_seconds": total_time_seconds,
+        "avg_time_per_question": round(total_time_seconds / total_items) if total_items > 0 else 0,
+        "scaled_raw_score": scaled_raw,
+        "demre": demre_result,
+        "ejes_breakdown": ejes_breakdown,
+        "review": review_items,
     }
 
 @router.post("/study/session/submit")

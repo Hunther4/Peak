@@ -1,4 +1,4 @@
-const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api"
+const BASE_URL = import.meta.env.VITE_API_URL || "/api"
 
 // API key is held in memory only, not localStorage
 let API_KEY = import.meta.env.VITE_PEAK_API_KEY || null
@@ -292,10 +292,19 @@ export const api = {
   paes: {
     getFsrsStatus: (userId = 1) => request(`/paes/fsrs/status?user_id=${userId}`),
     getCurriculumSubtopics: (userId = 1) => request(`/paes/curriculum/subtopics?user_id=${userId}`),
-    startStudySession: (sessionMode = "PRACTICE", subtopicSlug = null) =>
+    startStudySession: (sessionMode = "PRACTICE", subtopicSlug = null, questionCount = null) =>
       request("/paes/study/session/start", {
         method: "POST",
-        body: JSON.stringify({ session_mode: sessionMode, subtopic_slug: subtopicSlug }),
+        body: JSON.stringify({
+          session_mode: sessionMode,
+          subtopic_slug: subtopicSlug,
+          question_count: questionCount,
+        }),
+      }),
+    finalizeExam: (sessionId, answers) =>
+      request(`/paes/study/session/${sessionId}/finalize_exam`, {
+        method: "POST",
+        body: JSON.stringify({ answers }),
       }),
     submitAttempt: (data) =>
       request("/paes/study/session/submit", {

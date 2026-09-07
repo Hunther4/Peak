@@ -1,4 +1,4 @@
-﻿import { api } from "../../api/client"
+import { api } from "../../api/client"
 
 export const createPaesSlice = (set, get) => ({
   paesSessionId: null,
@@ -14,6 +14,13 @@ export const createPaesSlice = (set, get) => ({
   paesSocraticHints: [],
   paesLoading: false,
   paesError: null,
+
+  // --- Exam Simulation State ---
+  paesExamActive: false,
+  paesExamTimeLimitMinutes: 32,
+  paesExamAnswers: {}, // { [qId]: { selectedOption, timeSpentSeconds } }
+  paesExamFlags: [], // [qId]
+  paesExamResults: null,
 
   fetchPaesFsrsStatus: async (userId = 1) => {
     try {
@@ -37,10 +44,10 @@ export const createPaesSlice = (set, get) => ({
     }
   },
 
-  startPaesSession: async (sessionMode = "PRACTICE", subtopicSlug = null) => {
+  startPaesSession: async (sessionMode = "PRACTICE", subtopicSlug = null, questionCount = null) => {
     try {
-      set({ paesLoading: true, paesError: null, paesSocraticHints: [], paesLastResult: null })
-      const data = await api.paes.startStudySession(sessionMode, subtopicSlug)
+      set({ paesLoading: true, paesError: null, paesSocraticHints: [], paesLastResult: null, paesExamActive: false })
+      const data = await api.paes.startStudySession(sessionMode, subtopicSlug, questionCount)
       set({
         paesSessionId: data.session_id,
         paesSubtopic: data.subtopic,
@@ -55,6 +62,106 @@ export const createPaesSlice = (set, get) => ({
       set({ paesError: err.message, paesLoading: false })
     }
   },
+
+  // Start an official DEMRE mock test
+  startPaesExam: async (questionCount = 15) => {
+    try {
+      set({
+        paesLoading: true,
+        paesError: null,
+        paesExamActive: true,
+        paesExamResults: null,
+        paesExamAnswers: {},
+        paesExamFlags: [],
+        paesSocraticHints: [],
+        paesLastResult: null,
+      })
+      const data = await api.paes.startStudySession("EXAM", null, questionCount)
+      set({
+        paesSessionId: data.session_id,
+        paesSubtopic: `Simulacro Oficial (${questionCount} Preguntas)`,
+        paesQuestions: data.questions,
+        paesCurrentIndex: 0,
+        paesActiveQuestion: data.questions[0] || null,
+        paesExamTimeLimitMinutes: data.time_limit_minutes || (questionCount >= 60 ? 140 : questionCount >= 30 ? 65 : 32),
+        paesLoading: false,
+      })
+      return data
+    } catch (err) {
+      set({ paesError: err.message, paesLoading: false, paesExamActive: false })
+    }
+  },
+
+  setExamAnswer: (questionId, selectedOption, timeSpentSeconds = 0) => {
+    const { paesExamAnswers } = get()
+    const current = paesExamAnswers[questionId] || {}
+    set({
+      paesExamAnswers: {
+        ...paesExamAnswers,
+        [questionId]: {
+          selectedOption,
+          timeSpentSeconds: (current.timeSpentSeconds || 0) + timeSpentSeconds,
+        },
+      },
+    })
+  },
+
+  toggleExamFlag: (questionId) => {
+    const { paesExamFlags } = get()
+    const exists = paesExamFlags.includes(questionId)
+    set({
+      paesExamFlags: exists
+        ? paesExamFlags.filter((id) => id !== questionId)
+        : [...paesExamFlags, questionId],
+    })
+  },
+
+  jumpToPaesQuestion: (idx) => {
+    const { paesQuestions } = get()
+    if (idx >= 0 && idx < paesQuestions.length) {
+      set({
+        paesCurrentIndex: idx,
+        paesActiveQuestion: paesQuestions[idx],
+        paesSelectedOption: null,
+      })
+    }
+  },
+
+  finalizePaesExam: async () => {
+    const { paesSessionId, paesQuestions, paesExamAnswers } = get()
+    if (!paesSessionId) return
+
+    try {
+      set({ paesLoading: true, paesError: null })
+      const answersList = paesQuestions.map((q) => {
+        const recorded = paesExamAnswers[q.id]
+        return {
+          question_id: q.id,
+          selected_option: recorded ? recorded.selectedOption : null,
+          time_spent_seconds: recorded ? recorded.timeSpentSeconds : 0,
+        }
+      })
+
+      const results = await api.paes.finalizeExam(paesSessionId, answersList)
+      set({
+        paesExamResults: results,
+        paesExamActive: false,
+        paesLoading: false,
+      })
+      return results
+    } catch (err) {
+      set({ paesError: err.message, paesLoading: false })
+    }
+  },
+
+  exitPaesExam: () =>
+    set({
+      paesExamActive: false,
+      paesExamResults: null,
+      paesSessionId: null,
+      paesQuestions: [],
+      paesActiveQuestion: null,
+    }),
 
   selectPaesOption: (optKey) => set({ paesSelectedOption: optKey }),
   setPaesConfidence: (val) => set({ paesConfidence: val }),
@@ -133,5 +240,7 @@ export const createPaesSlice = (set, get) => ({
       paesLastResult: null,
       paesSocraticHints: [],
       paesError: null,
+      paesExamActive: false,
+      paesExamResults: null,
     }),
 })
