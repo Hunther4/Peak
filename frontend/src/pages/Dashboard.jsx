@@ -1,15 +1,13 @@
 import { useEffect, useState, useCallback } from "react"
 import { useNavigate } from "react-router"
 import { useStore } from "../store/store"
-import HeroStats from "../components/HeroStats"
-import QuickActions from "../components/QuickActions"
+import DeliberatePracticeHero from "../components/dashboard/DeliberatePracticeHero"
+import OptimalDailyAction from "../components/dashboard/OptimalDailyAction"
+import DualProgressRadar from "../components/dashboard/DualProgressRadar"
 import SkillGroup from "../components/SkillGroup"
 import SessionForm from "../components/SessionForm"
 import Timeline from "../components/Timeline"
 import ChallengeList from "../components/ChallengeList"
-import MentalRepTimeline from "../components/MentalRepTimeline"
-import BooksPanel from "../components/BooksPanel"
-import ModelInfo from "../components/ModelInfo"
 import { SkeletonHero, SkeletonCard } from "../components/ui/Skeleton"
 import { ErrorBoundary } from "../components/ui/ErrorBoundary"
 import { PageTransition } from "../components/ui/PageTransition"
@@ -23,10 +21,8 @@ export default function Dashboard() {
     fetchSkills,
     fetchSummary,
     fetchTimeline,
-    fetchMentalReps,
     fetchChallenges,
-    fetchBooksStatus,
-    fetchAiStatus,
+    fetchPaesSubtopics,
   } = useStore()
   const [showSessionForm, setShowSessionForm] = useState(false)
   const navigate = useNavigate()
@@ -35,10 +31,10 @@ export default function Dashboard() {
     fetchSkills()
     fetchSummary()
     fetchTimeline()
-    fetchMentalReps()
     fetchChallenges()
-    fetchBooksStatus()
-    fetchAiStatus()
+    if (fetchPaesSubtopics) {
+      fetchPaesSubtopics()
+    }
   }, [])
 
   const handlePractice = useCallback(
@@ -52,13 +48,16 @@ export default function Dashboard() {
 
   return (
     <PageTransition>
-      {/* Hero Stats — skeleton while loading */}
-      {isLoading ? <SkeletonHero /> : <HeroStats />}
+      {/* 1. Deliberate Practice Hero & Plateau Alert */}
+      {isLoading ? <SkeletonHero /> : <DeliberatePracticeHero />}
 
-      {/* Quick Actions */}
-      <QuickActions />
+      {/* 2. Optimal Daily Action (Algorithmic ZDP + FSRS Recommendation) */}
+      <OptimalDailyAction />
 
-      {/* Error Banner */}
+      {/* 3. Dual Progress Radar: PAES 100-1000 DEMRE vs Cognitive Foundations */}
+      <DualProgressRadar />
+
+      {/* Error Banner if any */}
       {error && (
         <div
           className="mb-8 p-4 bg-red-500/[0.08] border border-red-500/20 rounded-2xl flex items-center justify-between"
@@ -81,19 +80,16 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Skills Section */}
+      {/* 4. Active Skills Section */}
       <section className="mb-8">
         <div className="flex items-center gap-3 mb-6">
           <div className="w-9 h-9 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-lg">
             🎯
           </div>
-          <h2 className="text-lg font-bold text-white">Tus Skills</h2>
-          {loading && (
-            <div className="flex items-center gap-2 ml-auto">
-              <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-ping" />
-              <span className="text-[10px] text-green-500/70 uppercase tracking-wider">Sync</span>
-            </div>
-          )}
+          <div>
+            <h2 className="text-lg font-bold text-white tracking-tight">Tus Skills</h2>
+            <p className="text-xs text-neutral-400">Progreso individual y subhabilidades activas</p>
+          </div>
         </div>
 
         {isLoading ? (
@@ -107,13 +103,6 @@ export default function Dashboard() {
               🎯
             </div>
             <p className="text-sm text-neutral-400 mb-2">No hay skills todavía</p>
-            <p className="text-xs text-neutral-600">
-              Ejecutá{" "}
-              <code className="text-green-400 bg-green-500/10 px-2 py-1 rounded">
-                python seed.py
-              </code>{" "}
-              para empezar
-            </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 stagger">
@@ -124,14 +113,14 @@ export default function Dashboard() {
         )}
       </section>
 
-      {/* Session Form — collapsed by default */}
+      {/* Manual Session Section */}
       <section className="mb-8">
         {showSessionForm ? (
-          <div className="relative">
-            <SessionForm />
+          <div className="p-4 rounded-3xl bg-neutral-900/60 border border-white/[0.08] backdrop-blur-xl">
+            <SessionForm onSaved={() => setShowSessionForm(false)} />
             <button
               onClick={() => setShowSessionForm(false)}
-              className="mt-2 w-full py-2 text-[11px] text-neutral-500 hover:text-neutral-300 transition-colors uppercase tracking-wider"
+              className="mt-2 w-full py-2 text-[11px] text-neutral-500 hover:text-neutral-300 transition-colors uppercase tracking-wider cursor-pointer"
             >
               ▴ Ocultar formulario
             </button>
@@ -139,90 +128,49 @@ export default function Dashboard() {
         ) : (
           <button
             onClick={() => setShowSessionForm(true)}
-            className="card w-full py-4 px-5 flex items-center justify-between hover:border-green-500/20 transition-all duration-200 group"
+            className="w-full py-3.5 px-4 rounded-2xl border border-dashed border-white/[0.08] hover:border-white/[0.2] bg-white/[0.01] hover:bg-white/[0.03] text-neutral-400 hover:text-white transition-all flex items-center justify-center gap-2 text-xs font-semibold cursor-pointer"
           >
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-green-500/10 border border-green-500/20 flex items-center justify-center text-sm">
-                +
-              </div>
-              <span className="text-sm font-medium text-neutral-400 group-hover:text-white transition-colors">
-                Registro manual
-              </span>
-            </div>
-            <span className="text-neutral-600 group-hover:text-neutral-400 transition-colors">
-              ▾
-            </span>
+            <span>+</span>
+            <span>Registro manual</span>
           </button>
         )}
       </section>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Left Column — each section wrapped in ErrorBoundary */}
-        <div className="lg:col-span-5 space-y-8 stagger">
+      {/* 5. Two-column layout: Desafíos Activos & Auditoría Ericsson */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Left Column: Active AI Challenges */}
+        <div className="lg:col-span-5 space-y-6">
           <ErrorBoundary fallbackMessage="Los desafíos no pudieron cargarse.">
-            <section>
-              <div className="flex items-center gap-3 mb-6">
+            <div className="p-6 rounded-3xl bg-white/[0.02] border border-white/[0.06]">
+              <div className="flex items-center gap-3 mb-4">
                 <div className="w-9 h-9 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-lg">
                   🧩
                 </div>
-                <h2 className="text-lg font-bold text-white">Desafíos</h2>
-                <div className="flex-1 h-px bg-gradient-to-r from-white/[0.06] to-transparent ml-4" />
+                <div>
+                  <h3 className="text-base font-bold text-white tracking-tight">Desafíos Deliberados</h3>
+                  <p className="text-xs text-neutral-400">Micro-metas generadas por IA</p>
+                </div>
               </div>
               <ChallengeList />
-            </section>
-          </ErrorBoundary>
-
-          <ErrorBoundary fallbackMessage="Las representaciones mentales no pudieron cargarse.">
-            <section>
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-lg">
-                  🧠
-                </div>
-                <h2 className="text-lg font-bold text-white">Representaciones Mentales</h2>
-                <div className="flex-1 h-px bg-gradient-to-r from-white/[0.06] to-transparent ml-4" />
-              </div>
-              <MentalRepTimeline />
-            </section>
-          </ErrorBoundary>
-
-          <ErrorBoundary fallbackMessage="La biblioteca RAG no pudo cargarse.">
-            <section>
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-lg">
-                  📚
-                </div>
-                <h2 className="text-lg font-bold text-white">Biblioteca RAG</h2>
-                <div className="flex-1 h-px bg-gradient-to-r from-white/[0.06] to-transparent ml-4" />
-              </div>
-              <BooksPanel />
-            </section>
-          </ErrorBoundary>
-
-          <ErrorBoundary fallbackMessage="El motor de IA no pudo cargarse.">
-            <section>
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-9 h-9 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-lg">
-                  🤖
-                </div>
-                <h2 className="text-lg font-bold text-white">Motor de IA</h2>
-                <div className="flex-1 h-px bg-gradient-to-r from-white/[0.06] to-transparent ml-4" />
-              </div>
-              <ModelInfo />
-            </section>
+            </div>
           </ErrorBoundary>
         </div>
 
-        {/* Right Column: Timeline — with skeleton and error boundary */}
+        {/* Right Column: Deliberate Practice Audit Timeline */}
         <div className="lg:col-span-7">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-9 h-9 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center text-lg">
-              📝
-            </div>
-            <h2 className="text-lg font-bold text-white">Registro de Auditoría</h2>
-            <div className="flex-1 h-px bg-gradient-to-r from-white/[0.06] to-transparent ml-4" />
-          </div>
           <ErrorBoundary fallbackMessage="El registro de auditoría no pudo cargarse.">
-            <Timeline />
+            <div className="p-6 rounded-3xl bg-white/[0.02] border border-white/[0.06]">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-lg">
+                  📋
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white tracking-tight">Registro de Auditoría</h3>
+                  <p className="text-xs text-neutral-400">Veredictos de Anders Ericsson & detección de errores</p>
+                </div>
+              </div>
+              <Timeline />
+            </div>
           </ErrorBoundary>
         </div>
       </div>

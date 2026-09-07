@@ -7,9 +7,10 @@ export const LevelRing = memo(function LevelRing({
   strokeWidth = 5,
   className = "",
 }) {
+  const safeLevel = typeof level === "number" && !isNaN(level) ? level : 0
   const radius = (size / 2) - strokeWidth - 2
   const circumference = 2 * Math.PI * radius
-  const percent = Math.min(Math.max(level / 100, 0), 1)
+  const percent = Math.min(Math.max(safeLevel / 100, 0), 1)
   const offset = circumference - percent * circumference
 
   return (
@@ -20,7 +21,7 @@ export const LevelRing = memo(function LevelRing({
         viewBox={`0 0 ${size} ${size}`}
         className="-rotate-90"
         role="img"
-        aria-label={`Nivel ${Math.round(level)} de 100`}
+        aria-label={`Nivel ${Math.round(safeLevel)} de 100`}
       >
         <circle
           cx={size / 2}
@@ -52,7 +53,7 @@ export const LevelRing = memo(function LevelRing({
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
         <span className="text-3xl font-black text-white leading-none">
-          {Math.round(level)}
+          {Math.round(safeLevel)}
         </span>
         <span className="text-[9px] text-neutral-500 uppercase tracking-widest mt-1">nivel</span>
       </div>
@@ -67,9 +68,10 @@ export const MiniLevelRing = memo(function MiniLevelRing({
   strokeWidth = 3,
   className = "",
 }) {
+  const safeLevel = typeof level === "number" && !isNaN(level) ? level : 0
   const radius = (size / 2) - strokeWidth - 2
   const circumference = 2 * Math.PI * radius
-  const percent = Math.min(Math.max(level / 100, 0), 1)
+  const percent = Math.min(Math.max(safeLevel / 100, 0), 1)
   const offset = circumference - percent * circumference
 
   return (
@@ -101,7 +103,7 @@ export const MiniLevelRing = memo(function MiniLevelRing({
         </defs>
       </svg>
       <span className="absolute inset-0 flex items-center justify-center text-[11px] font-bold text-white">
-        {Math.round(level)}
+        {Math.round(safeLevel)}
       </span>
     </div>
   )

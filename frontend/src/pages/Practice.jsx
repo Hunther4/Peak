@@ -14,6 +14,7 @@ const IQPracticeGame = lazy(() => import("../components/IQPracticeGame"))
 const GAME_COMPONENTS = {
   memory_number: { load: () => MemoryGame, needsSkillId: true },
   problem_set: { load: () => MathThinkingGame, needsSkillId: true },
+  math_thinking: { load: () => MathThinkingGame, needsSkillId: true },
   dual_n_back: { load: () => DualNBackGame, needsSkillId: false },
   iq_practice: { load: () => IQPracticeGame, needsSkillId: true },
 }

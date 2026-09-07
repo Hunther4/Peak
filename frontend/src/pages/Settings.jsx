@@ -3,6 +3,7 @@ import { Link } from "react-router"
 import { useStore } from "../store/store"
 import { useToast } from "../components/ui/Toast"
 import AiModeToggle from "../components/AiModeToggle"
+import ModelInfo from "../components/ModelInfo"
 import ProfileAvatar from "../components/ProfileAvatar"
 import { PageTransition } from "../components/ui/PageTransition"
 
@@ -54,6 +55,9 @@ export default function Settings() {
         <h2 className="text-sm font-bold text-white uppercase tracking-wider">Motor de IA</h2>
         <p className="text-xs text-neutral-500">Elegí entre procesamiento local o en la nube.</p>
         <AiModeToggle />
+        <div className="pt-2">
+          <ModelInfo />
+        </div>
       </section>
 
       {/* Danger Zone */}

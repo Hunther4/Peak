@@ -29,7 +29,7 @@ def get_recent_results(db: Session, skill_id: int, window: int = STAIRCASE_WINDO
     recent = db.exec(
         select(SkillLevelHistory)
         .where(SkillLevelHistory.skill_id == skill_id)
-        .order_by(SkillLevelHistory.created_at.desc())
+        .order_by(SkillLevelHistory.created_at.desc(), SkillLevelHistory.id.desc())
         .limit(window)
     ).all()
 
@@ -127,7 +127,7 @@ def detect_plateau(db: Session, skill_id: int, window: int = PLATEAU_WINDOW) -> 
     recent = db.exec(
         select(SkillLevelHistory)
         .where(SkillLevelHistory.skill_id == skill_id)
-        .order_by(SkillLevelHistory.created_at.desc())
+        .order_by(SkillLevelHistory.created_at.desc(), SkillLevelHistory.id.desc())
         .limit(window)
     ).all()
 

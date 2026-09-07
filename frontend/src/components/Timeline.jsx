@@ -13,8 +13,9 @@ function parseAuditLog(entry) {
 const ScoreRing = memo(function ScoreRing({ score, size = 40 }) {
   const radius = (size / 2) - 3;
   const circumference = 2 * Math.PI * radius;
-  const offset = circumference - (score / 100) * circumference;
-  const color = score >= 70 ? '#22c55e' : score >= 40 ? '#f59e0b' : '#ef4444';
+  const safeScore = typeof score === 'number' && !isNaN(score) ? score : 0;
+  const offset = circumference - (safeScore / 100) * circumference;
+  const color = safeScore >= 70 ? '#22c55e' : safeScore >= 40 ? '#f59e0b' : '#ef4444';
   const [isVisible, setIsVisible] = useState(false);
   const ref = useRef(null);
 
@@ -45,7 +46,7 @@ const ScoreRing = memo(function ScoreRing({ score, size = 40 }) {
         />
       </svg>
       <div className="absolute inset-0 flex items-center justify-center">
-        <span className="text-[11px] font-bold text-neutral-300">{score}</span>
+        <span className="text-[11px] font-bold text-neutral-300">{safeScore}</span>
       </div>
     </div>
   );

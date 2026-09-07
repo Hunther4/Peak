@@ -4,9 +4,11 @@ import { useStore } from "./store/store"
 import { ToastProvider } from "./components/ui"
 import AppShell from "./components/layout/AppShell"
 import Dashboard from "./pages/Dashboard"
+import CognitiveGym from "./pages/CognitiveGym"
 import Practice from "./pages/Practice"
-import Settings from "./pages/Settings"
 import PaesStudy from "./pages/PaesStudy"
+import MetacognitionLab from "./pages/MetacognitionLab"
+import Settings from "./pages/Settings"
 import NotFound from "./pages/NotFound"
 import WelcomeScreen from "./components/WelcomeScreen"
 
@@ -65,8 +67,11 @@ const router = createBrowserRouter(
       ),
       children: [
         { index: true, element: <Dashboard /> },
+        { path: "gym", element: <CognitiveGym /> },
+        { path: "gym/:gameType", element: <Practice /> },
         { path: "practice/:gameType", element: <Practice /> },
         { path: "paes", element: <PaesStudy /> },
+        { path: "lab", element: <MetacognitionLab /> },
         { path: "settings", element: <Settings /> },
         { path: "*", element: <NotFound /> },
       ],
