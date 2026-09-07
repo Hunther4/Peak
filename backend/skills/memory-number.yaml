@@ -1,0 +1,40 @@
+skill_type: memory_number
+name: Memorizar Números
+description: "Entrenamiento de memoria con dígitos aleatorios — escalera adaptativa basada en el libro Peak"
+phases:
+  - phase: 1
+    min_span: 4
+    max_span: 7
+    digit_max: 1
+    timing_seconds: 5
+  - phase: 2
+    min_span: 8
+    max_span: 12
+    digit_max: 1
+    timing_seconds: 5
+  - phase: 3
+    min_span: 13
+    max_span: 18
+    digit_max: 2
+    timing_seconds: 4
+  - phase: 4
+    min_span: 19
+    max_span: 25
+    digit_max: 2
+    timing_seconds: 4
+  - phase: 5
+    min_span: 26
+    max_span: 30
+    digit_max: 3
+    timing_seconds: 4
+  - phase: 6
+    min_span: 31
+    max_span: 40
+    digit_max: 4
+    timing_seconds: 3
+  - phase: 7
+    min_span: 50
+    max_span: 80
+    digit_max: 9
+    timing_seconds: 3
+    ai_assisted: true

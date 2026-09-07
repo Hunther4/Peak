@@ -1,0 +1,15 @@
+[tool.coverage.run]
+source = ["api", "core", "models", "services"]
+omit = ["tests/*", "venv/*", "*/__pycache__/*"]
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 30
+
+[tool.ruff]
+target-version = "py311"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
+ignore = ["E501"]

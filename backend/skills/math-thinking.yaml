@@ -1,0 +1,26 @@
+slug: math-thinking
+name: Pensamiento Matemático
+domain: math
+skill_type: problem_set
+evaluation_protocol: battery
+prompts:
+  coach: |
+    Evalúa esta sesión de matemáticas.
+    - El error es conceptual o de ejecución?
+    - La corrección ataca la causa raíz?
+    - El tipo de problema está en el borde de su nivel actual?
+difficulties:
+  1: {label: básico, topics: [suma, resta, multiplicación, división], problem_types: [cálculo directo]}
+  2: {label: mental, topics: [operaciones combinadas, estimación, redondeo], problem_types: [cálculo mental]}
+  3: {label: fracciones, topics: [fracciones, decimales, porcentajes], problem_types: [conversión, comparación]}
+  4: {label: proporciones, topics: [regla de tres, escalas, tasas, proporcionalidad], problem_types: [aplicación]}
+  5: {label: secuencias, topics: [sucesiones numéricas, series lógicas, patrones], problem_types: [reconocimiento, extrapolación]}
+  6: {label: álgebra, topics: [ecuaciones lineales, despejar incógnitas, valor numérico], problem_types: [resolución]}
+  7: {label: sistemas, topics: [sistemas 2x2, desigualdades, inecuaciones], problem_types: [resolución, interpretación]}
+  8: {label: funciones, topics: [funciones lineales, cuadráticas, exponenciales], problem_types: [evaluación, análisis]}
+  9: {label: datos, topics: [estadística, probabilidad, combinatoria], problem_types: [cálculo, interpretación]}
+  10: {label: integrado, topics: [problemas multi-paso, modelado, razonamiento], problem_types: [resolución compleja]}
+assessment_defaults:
+  formal_every_n_sessions: 10
+  min_duration_minutes: 15
+  problems_per_assessment: 10

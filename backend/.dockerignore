@@ -1,0 +1,11 @@
+*.db
+*.db-*
+*.backup*
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+.venv/
+venv/
+tests/
+uploads/avatars/*
+!uploads/avatars/.gitkeep

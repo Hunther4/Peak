@@ -1,0 +1,21 @@
+slug: atencion-velocidad
+name: Atención y Velocidad
+domain: cognitive
+skill_type: problem_set
+evaluation_protocol: battery
+prompts:
+  coach: |
+    Evalúa esta sesión de atención y velocidad.
+    - ¿Mejoró la velocidad de respuesta?
+    - ¿Se mantuvo la precisión?
+    - ¿Hubo fatiga o pérdida de foco?
+difficulties:
+  1: {label: básico, topics: [atención sostenida, búsqueda simple], problem_types: [visual]}
+  2: {label: intermedio, topics: [atención dividida, búsqueda compleja], problem_types: [visual, auditivo]}
+  3: {label: avanzado, topics: [memoria de trabajo, velocidad de procesamiento], problem_types: [multi-estímulo]}
+  4: {label: experto, topics: [inhibición, flexibilidad cognitiva], problem_types: [anti-injerencia]}
+  5: {label: máximo, topics: [atención ejecutiva, procesamiento simultáneo], problem_types: [complejo]}
+assessment_defaults:
+  formal_every_n_sessions: 10
+  min_duration_minutes: 10
+  problems_per_assessment: 15

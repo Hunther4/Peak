@@ -1,0 +1,152 @@
+import { useEffect } from "react"
+import { AmbientBackground } from "./AmbientBackground"
+import AmbientParticles from "../AmbientParticles"
+
+/**
+ * GameShell — Shared game wrapper component.
+ * Extracts duplicated layout boilerplate from all 5 game components.
+ *
+ * Props:
+ * - title: string — game title
+ * - subtitle: string — game subtitle
+ * - icon: string/element — icon to display
+ * - accentColor: string — Tailwind color class for accent (default: green)
+ * - level: number — current level (shown in header)
+ * - phase: string — current phase (if not 'idle' or 'done', show "Presioná Escape")
+ * - sessionTimer: string | null — pre-formatted "MM:SS" time to display in header
+ * - onBack: () => void — back button handler
+ * - error: string | null — error message to display
+ * - onClearError: () => void — clear error handler
+ * - children: React node — the phase content
+ */
+export function GameShell({
+  title,
+  subtitle,
+  icon,
+  accentColor = "green",
+  level,
+  phase,
+  sessionTimer,
+  onBack,
+  error,
+  onClearError,
+  children,
+}) {
+  // Esc shortcut to leave a game (matches the "Presioná Escape" hint).
+  // Only active during safe phases — not during in-progress game phases.
+  useEffect(() => {
+    if (!onBack) return
+    // Safe phases: only allow Escape when game is idle, done, or not active
+    const safePhases = ["idle", "done", "setup", "results", "finished"]
+    if (phase && !safePhases.includes(phase)) return
+    const handler = (e) => {
+      if (e.key === "Escape") {
+        e.preventDefault()
+        onBack?.()
+      }
+    }
+    window.addEventListener("keydown", handler)
+    return () => window.removeEventListener("keydown", handler)
+  }, [onBack, phase])
+
+  const accentStyles = {
+    green: "from-green-400 to-emerald-600",
+    purple: "from-purple-400 to-violet-600",
+    blue: "from-blue-400 to-cyan-600",
+    amber: "from-amber-400 to-orange-600",
+  }
+
+  const accentGlow = {
+    green: "shadow-green-500/25",
+    purple: "shadow-purple-500/25",
+    blue: "shadow-blue-500/25",
+    amber: "shadow-amber-500/25",
+  }
+
+  const styles = accentStyles[accentColor] || accentStyles.green
+  const glow = accentGlow[accentColor] || accentGlow.green
+
+  return (
+    <div className="min-h-screen bg-neutral-950 relative overflow-hidden">
+      {/* Ambient background — the 4 blur blobs */}
+      <AmbientBackground />
+
+      {/* Floating particles */}
+      <AmbientParticles />
+
+      {/* Single header with back button */}
+      <header
+        className="sticky top-0 z-50 border-b border-white/[0.06] glass-panel"
+        style={{ backdropFilter: "blur(24px) saturate(1.8)" }}
+      >
+        <div className="max-w-[1400px] mx-auto flex items-center justify-between px-8 py-4">
+          {/* Left: icon + title + subtitle */}
+          <div className="flex items-center gap-4">
+            <div
+              className={`w-10 h-10 rounded-xl bg-gradient-to-br ${styles} flex items-center justify-center text-black font-black text-lg ${glow} transition-all`}
+            >
+              {icon}
+            </div>
+            <div>
+              <h1 className="text-xl font-black tracking-tight text-white leading-none">
+                {title}
+              </h1>
+              <p className="text-[10px] uppercase tracking-[0.25em] text-neutral-500 font-medium mt-0.5">
+                {subtitle}
+              </p>
+            </div>
+          </div>
+
+          {/* Right: level + session timer + escape hint + back button */}
+          <div className="flex items-center gap-4">
+            {level !== undefined && (
+              <span className="text-sm font-mono text-neutral-400">
+                Nivel <span className="text-white font-bold">{level}</span>
+              </span>
+            )}
+            {sessionTimer && (
+              <span
+                className="text-[10px] uppercase tracking-[0.25em] text-neutral-500 font-medium"
+                data-testid="session-timer"
+              >
+                Tiempo <span className="text-white font-mono">{sessionTimer}</span>
+              </span>
+            )}
+            {phase && ["idle", "done", "setup", "results", "finished"].includes(phase) && (
+              <span className="text-[10px] text-neutral-600 italic">
+                Presioná Escape para salir
+              </span>
+            )}
+            <button
+              onClick={onBack}
+              className="flex items-center gap-2 text-xs text-neutral-500 hover:text-white transition-colors px-4 py-2 rounded-lg border border-white/[0.08] hover:border-white/[0.2]"
+            >
+              <span className="text-base leading-none">←</span>
+              Volver al panel
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* Error banner */}
+      {error && (
+        <div className="max-w-[1400px] mx-auto px-6 pt-6">
+          <div className="mb-6 p-4 bg-red-500/[0.08] border border-red-500/20 rounded-2xl flex items-center justify-between">
+            <p className="text-sm text-red-400">{error}</p>
+            {onClearError && (
+              <button
+                onClick={onClearError}
+                className="text-xs text-red-500/60 hover:text-red-400 transition-colors"
+              >
+                Cerrar
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Main content slot */}
+      <main className="relative z-10">{children}</main>
+    </div>
+  )
+}
