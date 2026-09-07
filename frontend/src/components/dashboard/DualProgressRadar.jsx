@@ -4,39 +4,81 @@ import { useStore } from "../../store/store"
 
 export default function DualProgressRadar() {
   const navigate = useNavigate()
-  const { subtopics, skills } = useStore()
+  const { paesSubtopicsList, skills } = useStore()
 
   // Calculate estimated PAES score based on subtopics mastery
   const paesMetrics = useMemo(() => {
-    if (!subtopics || subtopics.length === 0) {
+    const list = paesSubtopicsList || []
+
+    // Config for the 4 official DEMRE M1 thematic axes
+    const ejeConfigs = [
+      {
+        name: "Números",
+        color: "bg-blue-500",
+        match: (s) => s.eje_name === "Números" || s.slug?.startsWith("m1-num"),
+      },
+      {
+        name: "Álgebra y Funciones",
+        color: "bg-purple-500",
+        match: (s) =>
+          s.eje_name === "Álgebra y Funciones" ||
+          s.slug?.startsWith("m1-algebra") ||
+          s.slug?.startsWith("m1-func"),
+      },
+      {
+        name: "Geometría",
+        color: "bg-emerald-500",
+        match: (s) => s.eje_name === "Geometría" || s.slug?.startsWith("m1-geo"),
+      },
+      {
+        name: "Probabilidad y Estadística",
+        color: "bg-amber-500",
+        match: (s) =>
+          s.eje_name === "Probabilidad y Estadística" ||
+          s.slug?.startsWith("m1-prob"),
+      },
+    ]
+
+    const totalAttempts = list.reduce((acc, s) => acc + (s.attempts || 0), 0)
+
+    // Calculate real eje percentages
+    const ejes = ejeConfigs.map((cfg) => {
+      const matchingSubtopics = list.filter(cfg.match)
+      if (matchingSubtopics.length === 0) {
+        return { name: cfg.name, pct: 0, color: cfg.color }
+      }
+      const ejeAttempts = matchingSubtopics.reduce((acc, s) => acc + (s.attempts || 0), 0)
+      if (ejeAttempts === 0) {
+        return { name: cfg.name, pct: 0, color: cfg.color }
+      }
+      const avgEjeMastery =
+        matchingSubtopics.reduce((acc, s) => acc + (s.mastery || 0), 0) / matchingSubtopics.length
       return {
-        score: 550, // Default baseline
-        masteryPct: 45,
-        ejes: [
-          { name: "Números", pct: 60, color: "bg-blue-500" },
-          { name: "Álgebra y Funciones", pct: 40, color: "bg-purple-500" },
-          { name: "Geometría", pct: 35, color: "bg-emerald-500" },
-          { name: "Probabilidad y Estadística", pct: 50, color: "bg-amber-500" },
-        ],
+        name: cfg.name,
+        pct: Math.round(avgEjeMastery * 100),
+        color: cfg.color,
+      }
+    })
+
+    if (totalAttempts === 0 || list.length === 0) {
+      return {
+        score: 100, // DEMRE M1 baseline score (no questions answered yet)
+        masteryPct: 0,
+        ejes,
       }
     }
 
     const avgMastery =
-      subtopics.reduce((acc, s) => acc + (s.mastery || 0), 0) / subtopics.length
+      list.reduce((acc, s) => acc + (s.mastery || 0), 0) / list.length
     // Convert 0..1 to DEMRE 100..1000 scale
-    const score = Math.round(100 + avgMastery * 900)
+    const score = Math.min(1000, Math.max(100, Math.round(100 + avgMastery * 900)))
 
     return {
       score,
       masteryPct: Math.round(avgMastery * 100),
-      ejes: [
-        { name: "Números", pct: Math.round(avgMastery * 105) % 100 || 50, color: "bg-blue-500" },
-        { name: "Álgebra y Funciones", pct: Math.round(avgMastery * 90) % 100 || 40, color: "bg-purple-500" },
-        { name: "Geometría", pct: Math.round(avgMastery * 80) % 100 || 35, color: "bg-emerald-500" },
-        { name: "Probabilidad y Estadística", pct: Math.round(avgMastery * 110) % 100 || 55, color: "bg-amber-500" },
-      ],
+      ejes,
     }
-  }, [subtopics])
+  }, [paesSubtopicsList])
 
   // Get cognitive skill levels
   const cognitiveMetrics = useMemo(() => {

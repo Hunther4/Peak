@@ -99,7 +99,7 @@ def test_run_migrations_applies_pending(engine):
             ).fetchall()
         )
 
-    assert versions == [1, 2, 3, 4, 5, 6, 7, 8, 9]
+    assert versions == [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 
 
 def test_run_migrations_is_idempotent(engine):
@@ -114,7 +114,7 @@ def test_run_migrations_is_idempotent(engine):
             text("SELECT COUNT(*) FROM schema_migrations")
         ).scalar()
 
-    assert count == 9
+    assert count == 10
 
 
 def test_migration_002_idempotent_guard(engine):
@@ -176,7 +176,7 @@ def test_run_migrations_applies_in_ascending_order(engine):
         ).fetchall()
 
     versions = [r[0] for r in rows]
-    assert versions == [1, 2, 3, 4, 5, 6, 7, 8, 9]
+    assert versions == [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 
 
 def test_migration_runner_fails_loud(engine, faulty_migration):

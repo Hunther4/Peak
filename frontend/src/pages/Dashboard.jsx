@@ -23,6 +23,7 @@ export default function Dashboard() {
     fetchTimeline,
     fetchChallenges,
     fetchPaesSubtopics,
+    fetchPaesFsrsStatus,
   } = useStore()
   const [showSessionForm, setShowSessionForm] = useState(false)
   const navigate = useNavigate()
@@ -34,6 +35,9 @@ export default function Dashboard() {
     fetchChallenges()
     if (fetchPaesSubtopics) {
       fetchPaesSubtopics()
+    }
+    if (fetchPaesFsrsStatus) {
+      fetchPaesFsrsStatus()
     }
   }, [])
 

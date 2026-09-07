@@ -410,7 +410,7 @@ root = pathlib.Path("core")
 issues = []
 for f in sorted(root.rglob("*.py")):
     try:
-        tree = ast.parse(f.read_text())
+        tree = ast.parse(f.read_text(encoding="utf-8"))
         for node in ast.walk(tree):
             if isinstance(node, ast.ExceptHandler) and node.type is None:
                 issues.append((str(f), node.lineno))
@@ -440,7 +440,7 @@ root = pathlib.Path("api/routes")
 issues = []
 for f in sorted(root.rglob("*.py")):
     try:
-        tree = ast.parse(f.read_text())
+        tree = ast.parse(f.read_text(encoding="utf-8"))
         for node in ast.walk(tree):
             if isinstance(node, ast.ExceptHandler) and node.type is None:
                 issues.append((str(f), node.lineno))

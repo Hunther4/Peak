@@ -131,6 +131,8 @@ def get_curriculum_subtopics(user_id: int = 1, session: Session = Depends(get_se
     subtopics = session.exec(select(PaesSubtopic).order_by(PaesSubtopic.order_index)).all()
     results = []
     for sub in subtopics:
+        topic = session.get(PaesTopic, sub.topic_id) if sub.topic_id else None
+        eje = session.get(PaesEjeTematico, topic.eje_id) if (topic and topic.eje_id) else None
         state = session.exec(
             select(PaesLearningState).where(
                 PaesLearningState.user_id == user_id,
@@ -142,6 +144,8 @@ def get_curriculum_subtopics(user_id: int = 1, session: Session = Depends(get_se
             "name": sub.name,
             "slug": sub.slug,
             "description": sub.description,
+            "eje_name": eje.name if eje else "General",
+            "topic_name": topic.name if topic else "General",
             "mastery": round(state.mastery_score, 2) if (state and state.total_attempts > 0) else 0.0,
             "leitner_box": state.leitner_box if (state and state.total_attempts > 0) else 1,
             "attempts": state.total_attempts if state else 0,
