@@ -1,6 +1,7 @@
-﻿import React, { useState, useEffect, useRef } from "react"
+import React, { useState, useEffect, useRef } from "react"
 import { useStore } from "../../store/store"
 import { MathRenderer } from "./MathRenderer"
+import { PaesReadingStimulus } from "./PaesReadingStimulus"
 
 export function PaesExamRunner() {
   const {
@@ -247,6 +248,14 @@ export function PaesExamRunner() {
                 <span>{isFlagged ? "Marcada para Revisión" : "Marcar para Revisar"}</span>
               </button>
             </div>
+
+            {/* Reading Stimulus if present */}
+            {paesActiveQuestion.stimulus_text && (
+              <PaesReadingStimulus
+                title={paesActiveQuestion.stimulus_title}
+                text={paesActiveQuestion.stimulus_text}
+              />
+            )}
 
             {/* Stem */}
             <div className="text-base text-neutral-100 leading-relaxed mb-8 select-text">

@@ -17,10 +17,11 @@ from models.paes_models import (
     PaesQuestionAttempt,
     PaesSocraticStep,
     PaesStudySession,
+    PaesSubject,
     PaesSubtopic,
     PaesTopic,
 )
-from services.paes.demre_scale import raw_score_to_paes
+from services.paes.demre_scale import SUBJECT_METADATA, raw_score_to_paes
 from services.paes.learning_engine import (
     FSRSState,
     apply_review_capping,
@@ -43,6 +44,7 @@ class StartStudySessionRequest(BaseModel):
     session_mode: str = "PRACTICE"  # PRACTICE, LEARN, EXAM, DIAGNOSTIC
     subtopic_slug: Optional[str] = None
     question_count: Optional[int] = None
+    subject_code: Optional[str] = "M1"
 
 class SubmitAttemptRequest(BaseModel):
     session_id: str
@@ -59,6 +61,7 @@ class ExamAnswerItem(BaseModel):
 
 class FinalizeExamRequest(BaseModel):
     answers: List[ExamAnswerItem]
+    subject_code: Optional[str] = "M1"
 
 class ParametricRequest(BaseModel):
     template_code: str = "PARAM-M1-ALG-01"
@@ -125,14 +128,49 @@ def get_fsrs_status(user_id: int = 1, session: Session = Depends(get_session)):
         "timestamp": now.isoformat(),
     }
 
+@router.get("/subjects")
+def get_subjects(session: Session = Depends(get_session)):
+    """Lista las 5 pruebas oficiales PAES 2026 con su configuración DEMRE."""
+    subjects = session.exec(select(PaesSubject)).all()
+    return {
+        "subjects": [
+            {
+                "id": s.id,
+                "code": s.code,
+                "name": s.name,
+                "is_mandatory": s.is_mandatory,
+                "total_questions": s.total_questions,
+                "scored_questions": s.scored_questions,
+                "pilot_questions": s.pilot_questions,
+                "duration_minutes": s.duration_minutes,
+            }
+            for s in subjects
+        ]
+    }
+
 @router.get("/curriculum/subtopics")
-def get_curriculum_subtopics(user_id: int = 1, session: Session = Depends(get_session)):
-    """Lista los 13 subtemas oficiales M1 con el estado de dominio del estudiante."""
-    subtopics = session.exec(select(PaesSubtopic).order_by(PaesSubtopic.order_index)).all()
+def get_curriculum_subtopics(
+    user_id: int = 1,
+    subject_code: Optional[str] = None,
+    session: Session = Depends(get_session),
+):
+    """Lista los subtemas oficiales con el estado de dominio del estudiante, opcionalmente filtrados por prueba."""
+    query = select(PaesSubtopic).order_by(PaesSubtopic.order_index)
+
+    if subject_code and subject_code.upper() != "ALL":
+        target_code = subject_code.upper()
+        subject = session.exec(select(PaesSubject).where(PaesSubject.code == target_code)).first()
+        if subject:
+            eje_ids = [e.id for e in session.exec(select(PaesEjeTematico).where(PaesEjeTematico.subject_id == subject.id)).all()]
+            topic_ids = [t.id for t in session.exec(select(PaesTopic).where(PaesTopic.eje_id.in_(eje_ids))).all()]
+            query = query.where(PaesSubtopic.topic_id.in_(topic_ids))
+
+    subtopics = session.exec(query).all()
     results = []
     for sub in subtopics:
         topic = session.get(PaesTopic, sub.topic_id) if sub.topic_id else None
         eje = session.get(PaesEjeTematico, topic.eje_id) if (topic and topic.eje_id) else None
+        subj = session.get(PaesSubject, eje.subject_id) if (eje and eje.subject_id) else None
         state = session.exec(
             select(PaesLearningState).where(
                 PaesLearningState.user_id == user_id,
@@ -144,6 +182,8 @@ def get_curriculum_subtopics(user_id: int = 1, session: Session = Depends(get_se
             "name": sub.name,
             "slug": sub.slug,
             "description": sub.description,
+            "subject_code": subj.code if subj else "M1",
+            "subject_name": subj.name if subj else "Competencia Matemática 1",
             "eje_name": eje.name if eje else "General",
             "topic_name": topic.name if topic else "General",
             "mastery": round(state.mastery_score, 2) if (state and state.total_attempts > 0) else 0.0,
@@ -172,22 +212,37 @@ def start_study_session(req: StartStudySessionRequest, user_id: int = 1, session
     session.add(study_session)
 
     # Selección de preguntas con orden aleatorio
+    target_subject_code = (req.subject_code or "M1").upper()
+    subj = session.exec(select(PaesSubject).where(PaesSubject.code == target_subject_code)).first()
+
     if req.session_mode == "EXAM":
-        count = req.question_count or 65
-        all_q = session.exec(
+        count = req.question_count or (subj.total_questions if subj else 65)
+        query = (
             select(PaesQuestion, PaesEjeTematico.name)
             .join(PaesSubtopic, PaesQuestion.subtopic_id == PaesSubtopic.id)
             .join(PaesTopic, PaesSubtopic.topic_id == PaesTopic.id)
             .join(PaesEjeTematico, PaesTopic.eje_id == PaesEjeTematico.id)
-        ).all()
+        )
+        if subj:
+            query = query.where(PaesEjeTematico.subject_id == subj.id)
+
+        all_q = session.exec(query).all()
+        if not all_q:
+            # Global fallback across curriculum if specific subject pool is small
+            all_q = session.exec(
+                select(PaesQuestion, PaesEjeTematico.name)
+                .join(PaesSubtopic, PaesQuestion.subtopic_id == PaesSubtopic.id)
+                .join(PaesTopic, PaesSubtopic.topic_id == PaesTopic.id)
+                .join(PaesEjeTematico, PaesTopic.eje_id == PaesEjeTematico.id)
+            ).all()
 
         if not all_q:
             raise HTTPException(status_code=400, detail="No hay preguntas disponibles en el currículum")
 
-        if count >= 65:
+        if len(all_q) <= count:
             selected_questions = [q for q, _ in all_q]
             random.shuffle(selected_questions)
-        elif count <= 15:
+        elif target_subject_code == "M1" and count <= 15:
             quotas = {"Números": 4, "Álgebra y Funciones": 5, "Geometría": 3, "Probabilidad y Estadística": 3}
             selected_questions = []
             for eje, q_target in quotas.items():
@@ -195,7 +250,7 @@ def start_study_session(req: StartStudySessionRequest, user_id: int = 1, session
                 random.shuffle(eje_pool)
                 selected_questions.extend(eje_pool[:q_target])
             random.shuffle(selected_questions)
-        elif count <= 30:
+        elif target_subject_code == "M1" and count <= 30:
             quotas = {"Números": 7, "Álgebra y Funciones": 10, "Geometría": 7, "Probabilidad y Estadística": 6}
             selected_questions = []
             for eje, q_target in quotas.items():
@@ -230,6 +285,8 @@ def start_study_session(req: StartStudySessionRequest, user_id: int = 1, session
             "id": q.id,
             "subtopic_id": q.subtopic_id,
             "stem": q.stem,
+            "stimulus_title": q.stimulus_title,
+            "stimulus_text": q.stimulus_text,
             "options": opts,
             "difficulty_estimate": q.difficulty_estimate,
             "provenance_type": q.provenance_type,
@@ -239,12 +296,25 @@ def start_study_session(req: StartStudySessionRequest, user_id: int = 1, session
     session.commit()
 
     total_len = len(frontend_questions)
-    time_limit = 140 if total_len >= 60 else (65 if total_len >= 30 else 32) if req.session_mode == "EXAM" else None
+    full_duration = subj.duration_minutes if subj else 140
+    if req.session_mode == "EXAM":
+        if total_len >= 50:
+            time_limit = full_duration
+        elif total_len >= 30:
+            time_limit = 65
+        elif total_len >= 15:
+            time_limit = 32
+        else:
+            time_limit = max(10, round(full_duration * (total_len / (subj.total_questions if subj else 65))))
+    else:
+        time_limit = None
 
     return {
         "session_id": session_id,
         "session_mode": req.session_mode,
-        "subtopic": subtopic.name if subtopic else "General M1",
+        "subject_code": target_subject_code,
+        "subject_name": subj.name if subj else "Competencia Matemática 1",
+        "subtopic": subtopic.name if subtopic else f"General {target_subject_code}",
         "total_questions": total_len,
         "questions": frontend_questions,
         "time_limit_minutes": time_limit,
@@ -348,6 +418,8 @@ def finalize_exam(session_id: str, req: FinalizeExamRequest, user_id: int = 1, s
         review_items.append({
             "question_id": q.id,
             "stem": q.stem,
+            "stimulus_title": q.stimulus_title,
+            "stimulus_text": q.stimulus_text,
             "options": q.options,
             "selected_option": selected_opt,
             "correct_option": correct_key,
@@ -360,9 +432,12 @@ def finalize_exam(session_id: str, req: FinalizeExamRequest, user_id: int = 1, s
             "explanation": q.explanation,
         })
 
-    # Escalar puntaje a 60 aciertos válidos oficiales DEMRE
-    scaled_raw = round((correct_count / total_items) * 60) if total_items > 0 else 0
-    demre_result = raw_score_to_paes(scaled_raw, total_valid=60)
+    # Escalar puntaje a aciertos válidos oficiales DEMRE según la materia
+    subject_code = (req.subject_code or "M1").upper()
+    meta = SUBJECT_METADATA.get(subject_code, SUBJECT_METADATA["M1"])
+    total_valid = meta["total_scored"]
+    scaled_raw = round((correct_count / total_items) * total_valid) if total_items > 0 else 0
+    demre_result = raw_score_to_paes(scaled_raw, total_valid=total_valid, subject_code=subject_code)
 
     study_session.is_completed = True
     study_session.completed_at = datetime.now(timezone.utc)

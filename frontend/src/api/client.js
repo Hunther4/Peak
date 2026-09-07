@@ -288,23 +288,26 @@ export const api = {
     },
   },
 
-  // --- PAES M1 Adaptive Learning Engine ---
+  // --- PAES Adaptive Learning Engine (Multidisciplinary) ---
   paes: {
+    getSubjects: () => request("/paes/subjects"),
     getFsrsStatus: (userId = 1) => request(`/paes/fsrs/status?user_id=${userId}`),
-    getCurriculumSubtopics: (userId = 1) => request(`/paes/curriculum/subtopics?user_id=${userId}`),
-    startStudySession: (sessionMode = "PRACTICE", subtopicSlug = null, questionCount = null) =>
+    getCurriculumSubtopics: (userId = 1, subjectCode = null) =>
+      request(`/paes/curriculum/subtopics?user_id=${userId}${subjectCode ? `&subject_code=${subjectCode}` : ""}`),
+    startStudySession: (sessionMode = "PRACTICE", subtopicSlug = null, questionCount = null, subjectCode = "M1") =>
       request("/paes/study/session/start", {
         method: "POST",
         body: JSON.stringify({
           session_mode: sessionMode,
           subtopic_slug: subtopicSlug,
           question_count: questionCount,
+          subject_code: subjectCode,
         }),
       }),
-    finalizeExam: (sessionId, answers) =>
+    finalizeExam: (sessionId, answers, subjectCode = "M1") =>
       request(`/paes/study/session/${sessionId}/finalize_exam`, {
         method: "POST",
-        body: JSON.stringify({ answers }),
+        body: JSON.stringify({ answers, subject_code: subjectCode }),
       }),
     submitAttempt: (data) =>
       request("/paes/study/session/submit", {

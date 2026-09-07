@@ -15,12 +15,32 @@ export const createPaesSlice = (set, get) => ({
   paesLoading: false,
   paesError: null,
 
+  // --- Multidisciplinary PAES Subjects ---
+  paesSubjects: [],
+  paesActiveSubject: "M1",
+
   // --- Exam Simulation State ---
   paesExamActive: false,
   paesExamTimeLimitMinutes: 32,
   paesExamAnswers: {}, // { [qId]: { selectedOption, timeSpentSeconds } }
   paesExamFlags: [], // [qId]
   paesExamResults: null,
+
+  fetchPaesSubjects: async () => {
+    try {
+      set({ paesLoading: true, paesError: null })
+      const data = await api.paes.getSubjects()
+      set({ paesSubjects: data.subjects || [], paesLoading: false })
+      return data.subjects
+    } catch (err) {
+      set({ paesError: err.message, paesLoading: false })
+    }
+  },
+
+  setPaesActiveSubject: async (code) => {
+    set({ paesActiveSubject: code })
+    await get().fetchPaesSubtopics(1, code)
+  },
 
   fetchPaesFsrsStatus: async (userId = 1) => {
     try {
@@ -33,10 +53,11 @@ export const createPaesSlice = (set, get) => ({
     }
   },
 
-  fetchPaesSubtopics: async (userId = 1) => {
+  fetchPaesSubtopics: async (userId = 1, subjectCode = null) => {
     try {
       set({ paesLoading: true, paesError: null })
-      const data = await api.paes.getCurriculumSubtopics(userId)
+      const targetSubject = subjectCode || get().paesActiveSubject || "M1"
+      const data = await api.paes.getCurriculumSubtopics(userId, targetSubject)
       set({ paesSubtopicsList: data.subtopics, paesLoading: false })
       return data.subtopics
     } catch (err) {
@@ -44,10 +65,11 @@ export const createPaesSlice = (set, get) => ({
     }
   },
 
-  startPaesSession: async (sessionMode = "PRACTICE", subtopicSlug = null, questionCount = null) => {
+  startPaesSession: async (sessionMode = "PRACTICE", subtopicSlug = null, questionCount = null, subjectCode = null) => {
     try {
       set({ paesLoading: true, paesError: null, paesSocraticHints: [], paesLastResult: null, paesExamActive: false })
-      const data = await api.paes.startStudySession(sessionMode, subtopicSlug, questionCount)
+      const targetSubject = subjectCode || get().paesActiveSubject || "M1"
+      const data = await api.paes.startStudySession(sessionMode, subtopicSlug, questionCount, targetSubject)
       set({
         paesSessionId: data.session_id,
         paesSubtopic: data.subtopic,
@@ -64,7 +86,7 @@ export const createPaesSlice = (set, get) => ({
   },
 
   // Start an official DEMRE mock test
-  startPaesExam: async (questionCount = 15) => {
+  startPaesExam: async (questionCount = 15, subjectCode = null) => {
     try {
       set({
         paesLoading: true,
@@ -76,10 +98,11 @@ export const createPaesSlice = (set, get) => ({
         paesSocraticHints: [],
         paesLastResult: null,
       })
-      const data = await api.paes.startStudySession("EXAM", null, questionCount)
+      const targetSubject = subjectCode || get().paesActiveSubject || "M1"
+      const data = await api.paes.startStudySession("EXAM", null, questionCount, targetSubject)
       set({
         paesSessionId: data.session_id,
-        paesSubtopic: `Simulacro Oficial (${questionCount} Preguntas)`,
+        paesSubtopic: `Simulacro Oficial (${data.subject_name || targetSubject} - ${questionCount} Preguntas)`,
         paesQuestions: data.questions,
         paesCurrentIndex: 0,
         paesActiveQuestion: data.questions[0] || null,
@@ -128,7 +151,7 @@ export const createPaesSlice = (set, get) => ({
   },
 
   finalizePaesExam: async () => {
-    const { paesSessionId, paesQuestions, paesExamAnswers } = get()
+    const { paesSessionId, paesQuestions, paesExamAnswers, paesActiveSubject } = get()
     if (!paesSessionId) return
 
     try {
@@ -142,7 +165,7 @@ export const createPaesSlice = (set, get) => ({
         }
       })
 
-      const results = await api.paes.finalizeExam(paesSessionId, answersList)
+      const results = await api.paes.finalizeExam(paesSessionId, answersList, paesActiveSubject || "M1")
       set({
         paesExamResults: results,
         paesExamActive: false,

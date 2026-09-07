@@ -1,5 +1,6 @@
-﻿import React from "react"
+import React from "react"
 import { MathRenderer } from "./MathRenderer"
+import { PaesReadingStimulus } from "./PaesReadingStimulus"
 
 export function PaesQuestionCard({
   question,
@@ -22,7 +23,7 @@ export function PaesQuestionCard({
       <div className="flex items-center justify-between gap-2 mb-4 pb-3 border-b border-white/[0.06]">
         <div className="flex items-center gap-2">
           <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
-            {question.provenance_type || "PAES M1"}
+            {question.provenance_type || "PAES"}
           </span>
           {question.is_pilot && (
             <span className="text-[11px] font-bold uppercase tracking-wider text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded-md border border-purple-500/20">
@@ -34,6 +35,11 @@ export function PaesQuestionCard({
           Dificultad est: {Math.round((question.difficulty_estimate || 0.5) * 100)}%
         </div>
       </div>
+
+      {/* Reading Stimulus / Text if available */}
+      {question.stimulus_text && (
+        <PaesReadingStimulus title={question.stimulus_title} text={question.stimulus_text} />
+      )}
 
       {/* Stem */}
       <div className="mb-6 text-sm md:text-base">

@@ -1,6 +1,7 @@
-﻿import React, { useState } from "react"
+import React, { useState } from "react"
 import { useStore } from "../../store/store"
 import { MathRenderer } from "./MathRenderer"
+import { PaesReadingStimulus } from "./PaesReadingStimulus"
 
 export function PaesExamResults({ onNewExam, onBackToStudy }) {
   const { paesExamResults } = useStore()
@@ -49,10 +50,10 @@ export function PaesExamResults({ onNewExam, onBackToStudy }) {
               <span>Puntaje Proyectado Admisión 2026</span>
             </div>
             <h2 className="text-3xl md:text-4xl font-black text-white tracking-tight">
-              Resultado Oficial DEMRE M1
+              Resultado Oficial DEMRE {demre?.subject_code || "M1"}
             </h2>
             <p className="text-xs text-neutral-400 max-w-md leading-relaxed">
-              Basado en la Tabla de Transformación oficial DEMRE para la prueba de Competencia Matemática 1 regular.
+              {demre?.performance_estimate_label || "Basado en la Tabla de Transformación oficial DEMRE regular."}
             </p>
           </div>
 
@@ -260,6 +261,14 @@ export function PaesExamResults({ onNewExam, onBackToStudy }) {
                 {/* Expanded Details */}
                 {isExpanded && (
                   <div className="p-6 pt-2 border-t border-white/[0.04] bg-neutral-950/40 space-y-6 animate-fade-in">
+                    {/* Reading Stimulus if present */}
+                    {item.stimulus_text && (
+                      <PaesReadingStimulus
+                        title={item.stimulus_title}
+                        text={item.stimulus_text}
+                      />
+                    )}
+
                     {/* Stem */}
                     <div className="p-4 rounded-xl bg-neutral-900/50 border border-white/[0.04] text-sm md:text-base text-neutral-100 leading-relaxed">
                       <MathRenderer text={item.stem} />

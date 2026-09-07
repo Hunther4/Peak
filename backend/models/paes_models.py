@@ -1,4 +1,4 @@
-﻿import json
+import json
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
@@ -80,6 +80,8 @@ class PaesQuestion(SQLModel, table=True):
     skill_id: str = Field(foreign_key="paes_competencies.id", index=True)
     provenance_type: str = Field(default="ORIGINAL") # OFFICIAL, ORIGINAL, PARAMETRIC
     stem: str
+    stimulus_title: Optional[str] = Field(default=None)
+    stimulus_text: Optional[str] = Field(default=None)
     options_json: str # JSON list of {key, text, is_correct, distractor_type}
     explanation_json: str # JSON dict {correct_solution, distractor_analysis}
     difficulty_estimate: float = Field(default=0.5)

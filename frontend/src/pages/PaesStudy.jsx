@@ -25,6 +25,10 @@ export default function PaesStudy() {
     paesError,
     paesExamActive,
     paesExamResults,
+    paesSubjects,
+    paesActiveSubject,
+    fetchPaesSubjects,
+    setPaesActiveSubject,
     fetchPaesFsrsStatus,
     fetchPaesSubtopics,
     startPaesSession,
@@ -48,9 +52,10 @@ export default function PaesStudy() {
   const [parametricEvaluated, setParametricEvaluated] = useState(false)
 
   useEffect(() => {
+    if (fetchPaesSubjects) fetchPaesSubjects()
     fetchPaesFsrsStatus()
-    fetchPaesSubtopics()
-  }, [])
+    fetchPaesSubtopics(1, paesActiveSubject || "M1")
+  }, [paesActiveSubject])
 
   const handleStartSubtopic = (slug) => {
     startPaesSession("PRACTICE", slug)
@@ -75,29 +80,51 @@ export default function PaesStudy() {
     }
   }
 
-  // Group the 13 subtopics by Ejes
+const SUBJECTS_LIST = [
+  { code: "M1", name: "Matemática 1", icon: "📐", badge: "Obligatoria", timePerQ: "2 min 09 seg / preg" },
+  { code: "LECTURA", name: "Competencia Lectora", icon: "📖", badge: "Obligatoria", timePerQ: "2 min 18 seg / preg" },
+  { code: "M2", name: "Matemática 2", icon: "📊", badge: "Específica", timePerQ: "2 min 32 seg / preg" },
+  { code: "CIENCIAS", name: "Ciencias", icon: "🧪", badge: "Electiva", timePerQ: "2 min 00 seg / preg" },
+  { code: "HISTORIA", name: "Historia y Cs. Sociales", icon: "🏛️", badge: "Electiva", timePerQ: "1 min 50 seg / preg" },
+]
+
+const SUBJECT_EXAMS_CONFIG = {
+  M1: {
+    mini: { count: 15, time: 32, label: "15 Preguntas balanceadas en los 4 ejes DEMRE M1." },
+    mid: { count: 30, time: 65, label: "30 Preguntas para medir ritmo y resistencia." },
+    full: { count: 65, time: 140, label: "Simulacro Oficial Completo M1 (60 evaluadas + 5 piloto)." },
+  },
+  LECTURA: {
+    mini: { count: 15, time: 35, label: "15 Preguntas con textos continuos y discontinuos." },
+    mid: { count: 30, time: 70, label: "30 Preguntas con las 3 habilidades oficiales DEMRE." },
+    full: { count: 65, time: 150, label: "Simulacro Oficial Completo de Comprensión Lectora (150 min)." },
+  },
+  M2: {
+    mini: { count: 15, time: 35, label: "15 Preguntas de trigonometría, logaritmos y funciones." },
+    mid: { count: 30, time: 75, label: "30 Preguntas de nivel 3° y 4° Medio avanzado." },
+    full: { count: 55, time: 140, label: "Simulacro Oficial Completo Matemática 2 (55 preguntas)." },
+  },
+  CIENCIAS: {
+    mini: { count: 20, time: 40, label: "20 Preguntas de Biología, Física y Química." },
+    mid: { count: 40, time: 80, label: "40 Preguntas de módulo común y electivo." },
+    full: { count: 80, time: 160, label: "Simulacro Oficial Completo de Ciencias (80 preguntas)." },
+  },
+  HISTORIA: {
+    mini: { count: 15, time: 30, label: "15 Preguntas de análisis de fuentes y ciudadanía." },
+    mid: { count: 30, time: 60, label: "30 Preguntas de Historia de Chile, economía y territorio." },
+    full: { count: 65, time: 120, label: "Simulacro Oficial Completo de Historia (65 preguntas)." },
+  },
+}
+
+  // Group subtopics dynamically by Ejes
   const subtopicsByEje = useMemo(() => {
     const list = paesSubtopicsList || []
-    const groups = {
-      "Números": [],
-      "Álgebra y Funciones": [],
-      "Geometría": [],
-      "Probabilidad y Estadística": [],
-    }
-
+    const groups = {}
     list.forEach((sub) => {
-      const s = (sub.slug || "").toLowerCase()
-      if (s.includes("numero") || s.includes("entero") || s.includes("porcentaje") || s.includes("potencia")) {
-        groups["Números"].push(sub)
-      } else if (s.includes("algebra") || s.includes("ecuacion") || s.includes("funcion") || s.includes("sistema")) {
-        groups["Álgebra y Funciones"].push(sub)
-      } else if (s.includes("geometria") || s.includes("perimetro") || s.includes("transformacion") || s.includes("pitagoras")) {
-        groups["Geometría"].push(sub)
-      } else {
-        groups["Probabilidad y Estadística"].push(sub)
-      }
+      const eje = sub.eje_name || "General"
+      if (!groups[eje]) groups[eje] = []
+      groups[eje].push(sub)
     })
-
     return groups
   }, [paesSubtopicsList])
 
@@ -106,11 +133,14 @@ export default function PaesStudy() {
     return <PaesExamRunner />
   }
 
+  const currentSubject = SUBJECTS_LIST.find((s) => s.code === (paesActiveSubject || "M1")) || SUBJECTS_LIST[0]
+  const currentExamConfig = SUBJECT_EXAMS_CONFIG[currentSubject.code] || SUBJECT_EXAMS_CONFIG["M1"]
+
   // 2. If viewing EXAM RESULTS: show PaesExamResults
   if (paesExamResults) {
     return (
       <PaesExamResults
-        onNewExam={() => startPaesExam(15)}
+        onNewExam={() => startPaesExam(currentExamConfig.mini.count, currentSubject.code)}
         onBackToStudy={() => exitPaesExam()}
       />
     )
@@ -118,17 +148,48 @@ export default function PaesStudy() {
 
   return (
     <div className="max-w-5xl mx-auto py-4 animate-fade-in pb-16">
+      {/* 5 Official PAES Subjects Switcher Pills */}
+      <div className="flex items-center gap-2 mb-6 p-1.5 rounded-2xl bg-neutral-900/60 border border-white/[0.06] overflow-x-auto">
+        {SUBJECTS_LIST.map((subj) => {
+          const isActive = (paesActiveSubject || "M1") === subj.code
+          return (
+            <button
+              key={subj.code}
+              onClick={() => setPaesActiveSubject(subj.code)}
+              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
+                isActive
+                  ? "bg-sky-500 text-neutral-950 shadow-md shadow-sky-500/20 font-black"
+                  : "text-neutral-400 hover:text-white hover:bg-white/[0.04]"
+              }`}
+            >
+              <span>{subj.icon}</span>
+              <span>{subj.name}</span>
+              <span
+                className={`text-[10px] px-1.5 py-0.5 rounded-md font-mono ${
+                  isActive ? "bg-black/20 text-neutral-900" : "bg-white/[0.06] text-neutral-400"
+                }`}
+              >
+                {subj.badge}
+              </span>
+            </button>
+          )
+        })}
+      </div>
+
       {/* Top Main Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <span className="text-2xl">📐</span>
+            <span className="text-2xl">{currentSubject.icon}</span>
             <h1 className="text-2xl font-black text-white tracking-tight">
-              Academia PAES Competencia Matemática 1 (M1)
+              Academia PAES {currentSubject.name}
             </h1>
+            <span className="text-[11px] font-mono px-2 py-0.5 rounded-md bg-sky-500/10 border border-sky-500/20 text-sky-400 font-bold">
+              {currentSubject.code}
+            </span>
           </div>
           <p className="text-xs md:text-sm text-neutral-400">
-            Ecosistema especializado con Ensayos Oficiales DEMRE, FSRS v4.5 y Generador Paramétrico SymPy.
+            Ecosistema de preparación oficial DEMRE 2026 con Ensayos Concretos, Algoritmo FSRS y Práctica Deliberada.
           </p>
         </div>
 
@@ -240,26 +301,26 @@ export default function PaesStudy() {
               <div className="p-6 rounded-3xl bg-neutral-900/40 border border-white/[0.06] flex flex-col md:flex-row items-center justify-between gap-6">
                 <div className="space-y-1 text-center md:text-left">
                   <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-sky-400">
-                    Ambiente Oficial DEMRE
+                    Ambiente Oficial DEMRE {currentSubject.code}
                   </span>
                   <h3 className="text-xl font-bold text-white">
-                    Simulacros Oficiales con Temporizador & Escala DEMRE
+                    Simulacros Oficiales de {currentSubject.name}
                   </h3>
                   <p className="text-xs text-neutral-400 max-w-xl">
-                    Practicá bajo presión real de tiempo (2:09 min por pregunta). Al finalizar, obtenés tu puntaje en escala oficial 100–1000 y el solucionario detallado.
+                    Practicá bajo presión real de tiempo ({currentSubject.timePerQ}). Al finalizar, obtenés tu puntaje en escala oficial DEMRE 100–1000 y el solucionario analítico.
                   </p>
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="px-4 py-3 rounded-2xl bg-neutral-950/80 border border-white/[0.06] text-center font-mono">
-                    <span className="text-[10px] text-neutral-400 block uppercase">Tiempo Oficial</span>
-                    <span className="text-sm font-bold text-sky-400">2 min 09 seg / preg</span>
+                    <span className="text-[10px] text-neutral-400 block uppercase">Ritmo Oficial</span>
+                    <span className="text-sm font-bold text-sky-400">{currentSubject.timePerQ}</span>
                   </div>
                 </div>
               </div>
 
               {/* 3 Exam Tier Cards */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                {/* Mini-Ensayo (15 Preguntas) */}
+                {/* Mini-Ensayo */}
                 <div className="p-6 rounded-3xl bg-neutral-900/60 border border-white/[0.08] hover:border-sky-500/50 transition-all flex flex-col justify-between group">
                   <div className="space-y-3">
                     <div className="flex justify-between items-start">
@@ -267,28 +328,27 @@ export default function PaesStudy() {
                         ⚡
                       </span>
                       <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded-md bg-sky-500/10 border border-sky-500/20 text-sky-400">
-                        32 MIN
+                        {currentExamConfig.mini.time} MIN
                       </span>
                     </div>
                     <div>
                       <h4 className="text-base font-bold text-white">Mini-Ensayo Focalizado</h4>
-                      <p className="text-xs text-neutral-400 mt-1">15 Preguntas balanceadas en los 4 ejes DEMRE.</p>
+                      <p className="text-xs text-neutral-400 mt-1">{currentExamConfig.mini.label}</p>
                     </div>
-                    <div className="pt-3 border-t border-white/[0.06] space-y-1 text-[11px] text-neutral-400 font-mono">
-                      <div>• 4 Números • 5 Álgebra</div>
-                      <div>• 3 Geometría • 3 Probabilidades</div>
+                    <div className="pt-3 border-t border-white/[0.06] text-[11px] text-neutral-400 font-mono">
+                      • {currentExamConfig.mini.count} Preguntas seleccionadas
                     </div>
                   </div>
 
                   <button
-                    onClick={() => startPaesExam(15)}
+                    onClick={() => startPaesExam(currentExamConfig.mini.count, currentSubject.code)}
                     className="w-full mt-6 py-3 rounded-xl bg-sky-500 hover:bg-sky-400 text-neutral-950 font-bold text-xs transition-all shadow-lg shadow-sky-500/20 cursor-pointer"
                   >
-                    Iniciar Mini-Ensayo (15) ➔
+                    Iniciar Mini-Ensayo ({currentExamConfig.mini.count}) ➔
                   </button>
                 </div>
 
-                {/* Medio Ensayo (30 Preguntas) */}
+                {/* Medio Ensayo */}
                 <div className="p-6 rounded-3xl bg-neutral-900/60 border border-white/[0.08] hover:border-purple-500/50 transition-all flex flex-col justify-between group">
                   <div className="space-y-3">
                     <div className="flex justify-between items-start">
@@ -296,28 +356,27 @@ export default function PaesStudy() {
                         📝
                       </span>
                       <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded-md bg-purple-500/10 border border-purple-500/20 text-purple-400">
-                        65 MIN
+                        {currentExamConfig.mid.time} MIN
                       </span>
                     </div>
                     <div>
                       <h4 className="text-base font-bold text-white">Medio Ensayo Calibrado</h4>
-                      <p className="text-xs text-neutral-400 mt-1">30 Preguntas para medir resistencia y precisión.</p>
+                      <p className="text-xs text-neutral-400 mt-1">{currentExamConfig.mid.label}</p>
                     </div>
-                    <div className="pt-3 border-t border-white/[0.06] space-y-1 text-[11px] text-neutral-400 font-mono">
-                      <div>• 7 Números • 10 Álgebra</div>
-                      <div>• 7 Geometría • 6 Probabilidades</div>
+                    <div className="pt-3 border-t border-white/[0.06] text-[11px] text-neutral-400 font-mono">
+                      • {currentExamConfig.mid.count} Preguntas para medir resistencia
                     </div>
                   </div>
 
                   <button
-                    onClick={() => startPaesExam(30)}
+                    onClick={() => startPaesExam(currentExamConfig.mid.count, currentSubject.code)}
                     className="w-full mt-6 py-3 rounded-xl bg-purple-500 hover:bg-purple-400 text-white font-bold text-xs transition-all shadow-lg shadow-purple-500/20 cursor-pointer"
                   >
-                    Iniciar Medio Ensayo (30) ➔
+                    Iniciar Medio Ensayo ({currentExamConfig.mid.count}) ➔
                   </button>
                 </div>
 
-                {/* Ensayo Completo DEMRE (65 Preguntas) */}
+                {/* Ensayo Completo DEMRE */}
                 <div className="p-6 rounded-3xl bg-neutral-900/60 border border-white/[0.08] hover:border-emerald-500/50 transition-all flex flex-col justify-between group relative overflow-hidden">
                   <div className="space-y-3">
                     <div className="flex justify-between items-start">
@@ -325,26 +384,25 @@ export default function PaesStudy() {
                         🎓
                       </span>
                       <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
-                        140 MIN
+                        {currentExamConfig.full.time} MIN
                       </span>
                     </div>
                     <div>
                       <h4 className="text-base font-bold text-white">Simulacro Oficial Completo</h4>
                       <p className="text-xs text-neutral-400 mt-1">
-                        65 Preguntas oficiales (60 puntuables + 5 piloto).
+                        {currentExamConfig.full.label}
                       </p>
                     </div>
-                    <div className="pt-3 border-t border-white/[0.06] space-y-1 text-[11px] text-neutral-400 font-mono">
-                      <div>• 15 Números • 20 Álgebra</div>
-                      <div>• 15 Geometría • 15 Probabilidades</div>
+                    <div className="pt-3 border-t border-white/[0.06] text-[11px] text-neutral-400 font-mono">
+                      • {currentExamConfig.full.count} Preguntas oficiales DEMRE 2026
                     </div>
                   </div>
 
                   <button
-                    onClick={() => startPaesExam(65)}
-                    className="w-full mt-6 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-bold text-xs transition-all shadow-lg shadow-emerald-500/20 cursor-pointer"
+                    onClick={() => startPaesExam(currentExamConfig.full.count, currentSubject.code)}
+                    className="w-full mt-6 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-neutral-950 font-black text-xs transition-all shadow-lg shadow-emerald-500/25 cursor-pointer"
                   >
-                    Iniciar Ensayo Completo (65) ➔
+                    Iniciar Simulacro ({currentExamConfig.full.count} Preguntas) ➔
                   </button>
                 </div>
               </div>
