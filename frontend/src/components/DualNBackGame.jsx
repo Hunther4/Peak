@@ -45,6 +45,8 @@ function DualNBackGame({ onClose }) {
   const [message, setMessage] = useState("")
   const [isPreview, setIsPreview] = useState(false)
   const [lastKeyPress, setLastKeyPress] = useState(null)
+  const [trialVisPressed, setTrialVisPressed] = useState(false)
+  const [trialAudPressed, setTrialAudPressed] = useState(false)
   const [currentBlock, setCurrentBlock] = useState(1)
   const [blockStats, setBlockStats] = useState([])
 
@@ -59,6 +61,11 @@ function DualNBackGame({ onClose }) {
   const isMountedRef = useRef(true)
   const currentBlockRef = useRef(1)
   const blockStatsRef = useRef([])
+  const trialVisPressedRef = useRef(false)
+  const trialAudPressedRef = useRef(false)
+  const trialRtRef = useRef(null)
+  const trialIndexRef = useRef(-1)
+  const sequenceRef = useRef(null)
 
   // Load user's current N level from backend on mount
   useEffect(() => {
@@ -106,39 +113,45 @@ function DualNBackGame({ onClose }) {
     sessionTimer.reset()
     const seq = generateSequence(n, TRIALS_PER_BLOCK + n)
     seq.n = n
+    sequenceRef.current = seq
     setSequence(seq)
     setTrialIndex(-1)
+    trialIndexRef.current = -1
     setResponses([])
+    responsesRef.current = []
     setResults(null)
     setConsolidated(false)
     setMessage("")
     setCurrentBlock(1)
+    currentBlockRef.current = 1
     setBlockStats([])
+    blockStatsRef.current = []
     setPhase("playing")
   }, [n, sessionTimer])
 
   // Run trial
   const runTrial = useCallback((index, seq) => {
     const currentN = seq.n ?? n
+    trialIndexRef.current = index
+    sequenceRef.current = seq
+
     if (index >= TRIALS_PER_BLOCK + currentN) {
-      // Calculate block results (use refs to avoid stale closure)
+      // Calculate block results
       const block = currentBlockRef.current
-      const blockStart = (block - 1) * TRIALS_PER_BLOCK
-      const blockResponses = responsesRef.current.filter(
-        r => r.trial >= blockStart && r.trial < blockStart + TRIALS_PER_BLOCK
-      )
-      const validResponses = blockResponses.filter(r => r.trial >= currentN)
+      const blockResponses = responsesRef.current.filter(r => r.block === block)
+      const validResponses = blockResponses
       const correct = validResponses.filter(r => r.correct).length
-      const visCorrect = validResponses.filter(r => r.visTarget === r.visPressed).length
-      const audCorrect = validResponses.filter(r => r.audTarget === r.audPressed).length
+      const visCorrect = validResponses.filter(r => r.visCorrect).length
+      const audCorrect = validResponses.filter(r => r.audCorrect).length
       const visTargets = validResponses.filter(r => r.visTarget).length
       const audTargets = validResponses.filter(r => r.audTarget).length
 
-      const accuracy = validResponses.length > 0 ? Math.round(correct / validResponses.length * 100) : 0
-      const visAccuracy = visTargets > 0 ? Math.round(visCorrect / visTargets * 100) : 0
-      const audAccuracy = audTargets > 0 ? Math.round(audCorrect / audTargets * 100) : 0
-      const avgRT = validResponses.length > 0
-        ? Math.round(validResponses.reduce((sum, r) => sum + r.reactionTime, 0) / validResponses.length)
+      const accuracy = validResponses.length > 0 ? Math.round((correct / validResponses.length) * 100) : 0
+      const visAccuracy = validResponses.length > 0 ? Math.round((visCorrect / validResponses.length) * 100) : 0
+      const audAccuracy = validResponses.length > 0 ? Math.round((audCorrect / validResponses.length) * 100) : 0
+      const activeRTs = validResponses.filter(r => r.reactionTime > 0)
+      const avgRT = activeRTs.length > 0
+        ? Math.round(activeRTs.reduce((sum, r) => sum + r.reactionTime, 0) / activeRTs.length)
         : 0
 
       const stats = { accuracy, visAccuracy, audAccuracy, avgReactionTime: avgRT, total: validResponses.length, correct, n: currentN, block }
@@ -152,15 +165,44 @@ function DualNBackGame({ onClose }) {
         return
       }
 
-      // Final results
-      let nextN = currentN
-      if (accuracy >= 80) nextN = Math.min(currentN + 1, 5)
-      else if (accuracy < 60) nextN = Math.max(currentN - 1, 1)
+      // Final results across all completed blocks
+      const allValid = responsesRef.current
+      const totalCorrect = allValid.filter(r => r.correct).length
+      const globalAccuracy = allValid.length > 0 ? Math.round((totalCorrect / allValid.length) * 100) : 0
+      const globalVisCorrect = allValid.filter(r => r.visCorrect).length
+      const globalAudCorrect = allValid.filter(r => r.audCorrect).length
+      const globalVisAccuracy = allValid.length > 0 ? Math.round((globalVisCorrect / allValid.length) * 100) : 0
+      const globalAudAccuracy = allValid.length > 0 ? Math.round((globalAudCorrect / allValid.length) * 100) : 0
+      const allRTs = allValid.filter(r => r.reactionTime > 0)
+      const globalAvgRT = allRTs.length > 0
+        ? Math.round(allRTs.reduce((sum, r) => sum + r.reactionTime, 0) / allRTs.length)
+        : 0
 
-      setResults({ accuracy, visAccuracy, audAccuracy, avgReactionTime: avgRT, total: validResponses.length, correct, n: currentN, nextN })
+      let nextN = currentN
+      if (globalAccuracy >= 80) nextN = Math.min(currentN + 1, 5)
+      else if (globalAccuracy < 60) nextN = Math.max(currentN - 1, 1)
+
+      setResults({
+        accuracy: globalAccuracy,
+        visAccuracy: globalVisAccuracy,
+        audAccuracy: globalAudAccuracy,
+        avgReactionTime: globalAvgRT,
+        total: allValid.length,
+        correct: totalCorrect,
+        n: currentN,
+        nextN,
+      })
       setPhase("results")
       return
     }
+
+    // Reset trial input tracking for this new trial
+    trialVisPressedRef.current = false
+    trialAudPressedRef.current = false
+    trialRtRef.current = null
+    setTrialVisPressed(false)
+    setTrialAudPressed(false)
+    setLastKeyPress(null)
 
     // Show stimulus
     const pos = seq.positions[index]
@@ -174,6 +216,7 @@ function DualNBackGame({ onClose }) {
 
     // Speak letter
     if (synthRef.current) {
+      synthRef.current.cancel()
       const utterance = new SpeechSynthesisUtterance(letter)
       utterance.rate = 1.2
       synthRef.current.speak(utterance)
@@ -192,9 +235,46 @@ function DualNBackGame({ onClose }) {
       setActivePosition(null)
       setActiveLetter(null)
 
-      // Wait then next trial
+      // Wait then evaluate trial and run next
       trialTimer.current = setTimeout(() => {
         if (!isMountedRef.current) return
+
+        // Evaluate trial if index >= currentN
+        if (index >= currentN) {
+          const isVisMatch = seq.visualTargets.has(index)
+          const isAudMatch = seq.audioTargets.has(index)
+          const visPressed = trialVisPressedRef.current
+          const audPressed = trialAudPressedRef.current
+          const visCorrect = visPressed === isVisMatch
+          const audCorrect = audPressed === isAudMatch
+          const correct = visCorrect && audCorrect
+          const rt = trialRtRef.current ?? 0
+
+          let keyLabel = "None"
+          if (visPressed && audPressed) keyLabel = "D"
+          else if (visPressed) keyLabel = "A"
+          else if (audPressed) keyLabel = "W"
+
+          const evaluatedTrial = {
+            block: currentBlockRef.current,
+            trial: index,
+            position: seq.positions[index],
+            letter: LETTERS[seq.letters[index]],
+            visTarget: isVisMatch,
+            audTarget: isAudMatch,
+            visPressed,
+            audPressed,
+            visCorrect,
+            audCorrect,
+            correct,
+            key: keyLabel,
+            reactionTime: rt,
+          }
+
+          responsesRef.current = [...responsesRef.current, evaluatedTrial]
+          setResponses([...responsesRef.current])
+        }
+
         runTrialRef.current(index + 1, seq)
       }, isiDuration)
     }, stimulusDuration)
@@ -215,43 +295,49 @@ function DualNBackGame({ onClose }) {
     }
   }, [phase, sequence, trialIndex, runTrial])
 
-  // Key handler
-  const handleKeyDown = useCallback((e) => {
-    if (phase !== "playing" || trialIndex < 0 || !sequence) return
+  // Unified input handler for both keydown and button clicks
+  const handleInput = useCallback((inputKey) => {
+    if (phase !== "playing" || trialIndexRef.current < 0 || !sequenceRef.current) return
     if (submitting) return
+    const currentN = sequenceRef.current?.n ?? n
+    if (trialIndexRef.current < currentN) return // Preview phase: inputs ignored
 
-    const key = e.key.toLowerCase()
-    if (key !== "a" && key !== "w" && key !== "d") return
-    e.preventDefault()
+    const key = inputKey.toLowerCase()
+    if (key !== "a" && key !== "w" && key !== "l" && key !== "d" && key !== " ") return
 
-    const reactionTime = Math.round(performance.now() - responseWindowStart.current)
-    const isVisMatch = sequence.visualTargets.has(trialIndex)
-    const isAudMatch = sequence.audioTargets.has(trialIndex)
-    const visPressed = key === "a" || key === "d"
-    const audPressed = key === "w" || key === "d"
-    const visCorrect = visPressed === isVisMatch
-    const audCorrect = audPressed === isAudMatch
-
-    const response = {
-      trial: trialIndex,
-      position: sequence.positions[trialIndex],
-      letter: LETTERS[sequence.letters[trialIndex]],
-      visTarget: isVisMatch,
-      audTarget: isAudMatch,
-      visPressed,
-      audPressed,
-      visCorrect,
-      audCorrect,
-      correct: visCorrect && audCorrect,
-      key,
-      reactionTime,
+    const rt = Math.round(performance.now() - responseWindowStart.current)
+    if (trialRtRef.current === null) {
+      trialRtRef.current = rt
     }
 
-    setResponses(prev => [...prev, response])
-    // Visual feedback: flash the key pressed
-    setLastKeyPress(key)
+    if (key === "a") {
+      trialVisPressedRef.current = true
+      setTrialVisPressed(true)
+      setLastKeyPress("a")
+    } else if (key === "w" || key === "l") {
+      trialAudPressedRef.current = true
+      setTrialAudPressed(true)
+      setLastKeyPress("w")
+    } else if (key === "d" || key === " ") {
+      trialVisPressedRef.current = true
+      trialAudPressedRef.current = true
+      setTrialVisPressed(true)
+      setTrialAudPressed(true)
+      setLastKeyPress("d")
+    }
+
     setTimeout(() => setLastKeyPress(null), 300)
-  }, [phase, trialIndex, sequence, submitting])
+  }, [phase, submitting, n])
+
+  // Key handler
+  const handleKeyDown = useCallback((e) => {
+    if (e.repeat) return
+    const key = e.key.toLowerCase()
+    if (key === "a" || key === "w" || key === "l" || key === "d" || key === " ") {
+      e.preventDefault()
+      handleInput(key)
+    }
+  }, [handleInput])
 
   useEffect(() => {
     window.addEventListener("keydown", handleKeyDown)
@@ -269,10 +355,10 @@ function DualNBackGame({ onClose }) {
 
       const trials = responsesRef.current.map(r => ({
         estimulo: `V:${r.position} A:${r.letter}`,
-        respuesta_esperada: r.visTarget || r.audTarget ? "Match" : "NoMatch",
-        respuesta_usuario: r.key.toUpperCase(),
+        respuesta_esperada: (r.visTarget && r.audTarget) ? "Ambos" : r.visTarget ? "Visual" : r.audTarget ? "Audio" : "Ninguno",
+        respuesta_usuario: (r.visPressed && r.audPressed) ? "Ambos" : r.visPressed ? "Visual" : r.audPressed ? "Audio" : "Ninguno",
         es_correcto: r.correct,
-        tiempo_reaccion_ms: r.reactionTime,
+        tiempo_reaccion_ms: r.reactionTime || 0,
       }))
 
       if (trials.length === 0) {
@@ -282,9 +368,7 @@ function DualNBackGame({ onClose }) {
       }
 
       await api.cognitive.uploadTrials(session.id, trials)
-
       await api.cognitive.finalizeSession(session.id, timerBody)
-
       await consolidateDualNBack(session.id)
       setConsolidated(true)
       setError(null)
@@ -293,7 +377,7 @@ function DualNBackGame({ onClose }) {
     } finally {
       setSubmitting(false)
     }
-  }, [consolidateDualNBack, sessionTimer])
+  }, [consolidateDualNBack, results, sessionTimer, submitting])
 
   // Auto-submit results to backend when entering results phase
   useEffect(() => {
@@ -307,21 +391,60 @@ function DualNBackGame({ onClose }) {
     setPhase("setup")
     setResults(null)
     setResponses([])
+    responsesRef.current = []
     setMessage("")
   }, [results])
 
   const handleNextBlock = useCallback(() => {
     const nextBlock = currentBlock + 1
     setCurrentBlock(nextBlock)
+    currentBlockRef.current = nextBlock
     setResults(null)
     // Generate new sequence for next block
     const seq = generateSequence(n, TRIALS_PER_BLOCK + n)
     seq.n = n
+    sequenceRef.current = seq
     setSequence(seq)
     setTrialIndex(-1)
+    trialIndexRef.current = -1
     setMessage("")
     setPhase("playing")
   }, [currentBlock, n])
+
+  const handleFinishEarly = useCallback(() => {
+    const allValid = responsesRef.current
+    if (allValid.length === 0) {
+      setPhase("setup")
+      return
+    }
+    const currentN = sequenceRef.current?.n ?? n
+    const totalCorrect = allValid.filter(r => r.correct).length
+    const globalAccuracy = Math.round((totalCorrect / allValid.length) * 100)
+    const globalVisCorrect = allValid.filter(r => r.visCorrect).length
+    const globalAudCorrect = allValid.filter(r => r.audCorrect).length
+    const globalVisAccuracy = Math.round((globalVisCorrect / allValid.length) * 100)
+    const globalAudAccuracy = Math.round((globalAudCorrect / allValid.length) * 100)
+    const allRTs = allValid.filter(r => r.reactionTime > 0)
+    const globalAvgRT = allRTs.length > 0
+      ? Math.round(allRTs.reduce((sum, r) => sum + r.reactionTime, 0) / allRTs.length)
+      : 0
+
+    let nextN = currentN
+    if (globalAccuracy >= 80) nextN = Math.min(currentN + 1, 5)
+    else if (globalAccuracy < 60) nextN = Math.max(currentN - 1, 1)
+
+    setResults({
+      accuracy: globalAccuracy,
+      visAccuracy: globalVisAccuracy,
+      audAccuracy: globalAudAccuracy,
+      avgReactionTime: globalAvgRT,
+      total: allValid.length,
+      correct: totalCorrect,
+      n: currentN,
+      nextN,
+    })
+    setPhase("results")
+  }, [n])
 
   const handleBack = useCallback(() => {
     if (trialTimer.current) clearTimeout(trialTimer.current)
@@ -332,12 +455,13 @@ function DualNBackGame({ onClose }) {
 
   // Grid cells
   const gridCells = Array.from({ length: TOTAL_POSITIONS }, (_, i) => i)
-  const attemptedCount = responses.filter(r => r.trial >= n).length
-  const correctCount = responses.filter(r => r.trial >= n && r.correct).length
+  const currentBlockResponses = responses.filter(r => r.block === currentBlock)
+  const attemptedCount = currentBlockResponses.length
+  const correctCount = currentBlockResponses.filter(r => r.correct).length
   const visTargetCount = sequence ? [...sequence.visualTargets].filter(i => i >= n && i <= trialIndex).length : 0
   const audTargetCount = sequence ? [...sequence.audioTargets].filter(i => i >= n && i <= trialIndex).length : 0
-  const visHitCount = responses.filter(r => r.trial >= n && r.visTarget && r.visPressed).length
-  const audHitCount = responses.filter(r => r.trial >= n && r.audTarget && r.audPressed).length
+  const visHitCount = currentBlockResponses.filter(r => r.visTarget && r.visPressed).length
+  const audHitCount = currentBlockResponses.filter(r => r.audTarget && r.audPressed).length
 
   return (
     <GameShell
@@ -501,59 +625,88 @@ function DualNBackGame({ onClose }) {
               </span>
             </div>
 
-            {/* Key legend with press feedback */}
-            <div className="flex justify-center gap-6 text-sm text-neutral-400">
-              <span>
-                <kbd className={`px-3 py-1 rounded font-mono font-bold transition-all duration-150 ${
-                  lastKeyPress === "a"
-                    ? "text-black bg-green-400 shadow-lg shadow-green-400/50 scale-110"
-                    : "text-green-400 bg-green-500/10"
-                }`}>A</kbd> Posición
-              </span>
-              <span>
-                <kbd className={`px-3 py-1 rounded font-mono font-bold transition-all duration-150 ${
-                  lastKeyPress === "w"
-                    ? "text-black bg-green-400 shadow-lg shadow-green-400/50 scale-110"
-                    : "text-green-400 bg-green-500/10"
-                }`}>W</kbd> Letra
-              </span>
-              <span>
-                <kbd className={`px-3 py-1 rounded font-mono font-bold transition-all duration-150 ${
-                  lastKeyPress === "d"
-                    ? "text-black bg-green-400 shadow-lg shadow-green-400/50 scale-110"
-                    : "text-green-400 bg-green-500/10"
-                }`}>D</kbd> Posición + Letra
-              </span>
+            {/* Interactive Input Buttons (Keyboard & Touch) */}
+            <div className="grid grid-cols-3 gap-3 max-w-md mx-auto">
+              <button
+                type="button"
+                onClick={() => handleInput("a")}
+                disabled={phase !== "playing" || isPreview}
+                className={`p-4 rounded-xl border flex flex-col items-center justify-center transition-all duration-150 cursor-pointer select-none active:scale-95 ${
+                  lastKeyPress === "a" || trialVisPressed
+                    ? "bg-green-500 text-black border-green-400 shadow-lg shadow-green-500/30 scale-105"
+                    : "bg-neutral-900/80 hover:bg-neutral-800/80 border-white/[0.08] text-white"
+                }`}
+              >
+                <kbd className={`px-2 py-0.5 rounded text-xs font-mono font-bold mb-1.5 transition-colors ${
+                  lastKeyPress === "a" || trialVisPressed
+                    ? "bg-black/20 text-black"
+                    : "bg-green-500/10 text-green-400"
+                }`}>A</kbd>
+                <span className="font-bold text-xs sm:text-sm">🎯 Posición</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleInput("w")}
+                disabled={phase !== "playing" || isPreview}
+                className={`p-4 rounded-xl border flex flex-col items-center justify-center transition-all duration-150 cursor-pointer select-none active:scale-95 ${
+                  lastKeyPress === "w" || trialAudPressed
+                    ? "bg-green-500 text-black border-green-400 shadow-lg shadow-green-500/30 scale-105"
+                    : "bg-neutral-900/80 hover:bg-neutral-800/80 border-white/[0.08] text-white"
+                }`}
+              >
+                <kbd className={`px-2 py-0.5 rounded text-xs font-mono font-bold mb-1.5 transition-colors ${
+                  lastKeyPress === "w" || trialAudPressed
+                    ? "bg-black/20 text-black"
+                    : "bg-green-500/10 text-green-400"
+                }`}>W / L</kbd>
+                <span className="font-bold text-xs sm:text-sm">🔊 Letra</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleInput("d")}
+                disabled={phase !== "playing" || isPreview}
+                className={`p-4 rounded-xl border flex flex-col items-center justify-center transition-all duration-150 cursor-pointer select-none active:scale-95 ${
+                  lastKeyPress === "d" || (trialVisPressed && trialAudPressed)
+                    ? "bg-green-500 text-black border-green-400 shadow-lg shadow-green-500/30 scale-105"
+                    : "bg-neutral-900/80 hover:bg-neutral-800/80 border-white/[0.08] text-white"
+                }`}
+              >
+                <kbd className={`px-2 py-0.5 rounded text-xs font-mono font-bold mb-1.5 transition-colors ${
+                  lastKeyPress === "d" || (trialVisPressed && trialAudPressed)
+                    ? "bg-black/20 text-black"
+                    : "bg-green-500/10 text-green-400"
+                }`}>D / Espacio</kbd>
+                <span className="font-bold text-xs sm:text-sm">⚡ Ambos</span>
+              </button>
             </div>
 
-            {/* Trial log — last N trials */}
-            {responses.length > 0 && (
+            {/* Trial log — trials in this block */}
+            {currentBlockResponses.length > 0 && (
               <div className="card p-4">
-                <p className="text-[10px] text-neutral-500 uppercase tracking-wider mb-3 text-center">Últimos {Math.min(responses.length, n)} trials</p>
+                <p className="text-[10px] text-neutral-500 uppercase tracking-wider mb-3 text-center">
+                  Últimos {Math.min(currentBlockResponses.length, 10)} trials del bloque {currentBlock}
+                </p>
                 <div className="flex justify-center gap-1.5 flex-wrap">
-                  {responses.slice(-n).map((r, i) => {
-                    const globalIdx = responses.length - n + i
-                    const isVisMatch = r.visTarget
-                    const isAudMatch = r.audTarget
-                    return (
-                      <div
-                        key={globalIdx}
-                        className={`flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-lg text-[10px] border ${
-                          r.correct
-                            ? "bg-green-500/[0.06] border-green-500/20"
-                            : "bg-red-500/[0.06] border-red-500/20"
-                        }`}
-                      >
-                        <span className="text-neutral-500 font-mono">T{r.trial}</span>
-                        <span className={`font-bold ${r.correct ? "text-green-400" : "text-red-400"}`}>
-                          {r.key.toUpperCase()}
-                        </span>
-                        <span className="text-neutral-600">
-                          {isVisMatch ? "V" : "·"}{isAudMatch ? "A" : "·"}
-                        </span>
-                      </div>
-                    )
-                  })}
+                  {currentBlockResponses.slice(-10).map((r) => (
+                    <div
+                      key={r.trial}
+                      className={`flex flex-col items-center gap-0.5 px-2.5 py-1.5 rounded-lg text-[10px] border ${
+                        r.correct
+                          ? "bg-green-500/[0.06] border-green-500/20"
+                          : "bg-red-500/[0.06] border-red-500/20"
+                      }`}
+                    >
+                      <span className="text-neutral-500 font-mono">T{r.trial}</span>
+                      <span className={`font-bold ${r.correct ? "text-green-400" : "text-red-400"}`}>
+                        {r.correct ? "✓" : "✗"} {r.key !== "None" ? r.key : "—"}
+                      </span>
+                      <span className="text-neutral-600">
+                        {r.visTarget ? "V" : "·"}{r.audTarget ? "A" : "·"}
+                      </span>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
@@ -638,9 +791,12 @@ function DualNBackGame({ onClose }) {
               </div>
             )}
 
-            <div className="flex justify-center">
-              <button onClick={handleNextBlock} className="btn btn-primary px-10 py-4 text-lg">
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <button onClick={handleNextBlock} className="btn btn-primary px-8 py-3 text-base">
                 Siguiente bloque →
+              </button>
+              <button onClick={handleFinishEarly} className="btn btn-secondary px-6 py-3 text-base">
+                Finalizar sesión ahora
               </button>
             </div>
           </div>

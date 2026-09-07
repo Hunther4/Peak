@@ -97,4 +97,18 @@ describe("DualNBackGame", () => {
     render(<DualNBackGame />)
     expect(screen.getByText(/Cómo funciona/)).toBeInTheDocument()
   })
+
+  it("transitions to playing phase and displays interactive buttons on start", () => {
+    useStore.mockReturnValue(createMockState())
+    useStore.getState.mockReturnValue(createMockState())
+    render(<DualNBackGame />)
+
+    const startBtn = screen.getByText("Iniciar Entrenamiento")
+    fireEvent.click(startBtn)
+
+    expect(screen.getByText(/Bloque/)).toBeInTheDocument()
+    expect(screen.getByText(/Posición/)).toBeInTheDocument()
+    expect(screen.getByText(/Letra/)).toBeInTheDocument()
+    expect(screen.getByText(/Ambos/)).toBeInTheDocument()
+  })
 })
