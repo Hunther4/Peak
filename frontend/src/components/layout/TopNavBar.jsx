@@ -5,14 +5,22 @@ import { StatusIndicator } from "../StatusIndicator"
 const ROUTE_NAMES = {
   "/": { title: "Centro de Mando", tag: "Dashboard", color: "from-emerald-400 to-teal-500" },
   "/gym": { title: "Gimnasio Cognitivo", tag: "Peak Psychometrics", color: "from-purple-400 to-indigo-500" },
-  "/paes": { title: "Academia PAES M1", tag: "Adaptativo DEMRE", color: "from-sky-400 to-blue-600" },
+  "/paes": { title: "Academia PAES", tag: "Adaptativo DEMRE", color: "from-sky-400 to-blue-600" },
   "/lab": { title: "Laboratorio Metacognitivo", tag: "Telemetría & RAG", color: "from-amber-400 to-orange-500" },
   "/settings": { title: "Ajustes & Sistema", tag: "Hardware & Modelos", color: "from-neutral-400 to-neutral-200" },
 }
 
+const SUBJECT_ICONS = {
+  M1: "📐",
+  LECTURA: "📖",
+  M2: "📊",
+  CIENCIAS: "🧪",
+  HISTORIA: "🏛️",
+}
+
 export default function TopNavBar() {
   const location = useLocation()
-  const { profile, summary } = useStore()
+  const { profile, summary, paesActiveSubject } = useStore()
 
   // Match root or nested route
   const basePath = Object.keys(ROUTE_NAMES).find(
@@ -21,6 +29,10 @@ export default function TopNavBar() {
 
   const routeMeta = ROUTE_NAMES[basePath] || ROUTE_NAMES["/"]
   const streak = summary?.streak_days ?? profile?.streak ?? 0
+
+  const isPaesRoute = basePath === "/paes"
+  const activeSubject = paesActiveSubject || "M1"
+  const subjectIcon = SUBJECT_ICONS[activeSubject] || "📐"
 
   return (
     <header className="sticky top-0 z-30 w-full border-b border-white/[0.06] bg-neutral-950/75 backdrop-blur-xl transition-all">
@@ -63,13 +75,13 @@ export default function TopNavBar() {
             <span className="font-medium text-emerald-300/90 text-[11px]">Enfoque Deliberado</span>
           </div>
 
-          {/* PAES Projection badge */}
+          {/* PAES Subject badge — dynamic when on /paes route */}
           <div
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-sky-500/[0.08] border border-sky-500/20 text-sky-400 text-xs font-semibold"
-            title="Escala Oficial DEMRE M1 (100 - 1000 pts)"
+            title={`Escala Oficial DEMRE ${isPaesRoute ? activeSubject : "M1"} (100 - 1000 pts)`}
           >
-            <span className="text-sm">📐</span>
-            <span className="font-mono font-bold">M1</span>
+            <span className="text-sm">{isPaesRoute ? subjectIcon : "📐"}</span>
+            <span className="font-mono font-bold">{isPaesRoute ? activeSubject : "M1"}</span>
             <span className="hidden sm:inline text-[11px] text-sky-300/80 font-normal">DEMRE 2026</span>
           </div>
         </div>

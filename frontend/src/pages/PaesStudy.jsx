@@ -55,6 +55,10 @@ export default function PaesStudy() {
     if (fetchPaesSubjects) fetchPaesSubjects()
     fetchPaesFsrsStatus()
     fetchPaesSubtopics(1, paesActiveSubject || "M1")
+    // Reset parametric tab if switching to a non-math subject
+    if (!["M1", "M2"].includes(paesActiveSubject || "M1") && activeTab === "parametric") {
+      setActiveTab("exams")
+    }
   }, [paesActiveSubject])
 
   const handleStartSubtopic = (slug) => {
@@ -275,9 +279,12 @@ const SUBJECT_EXAMS_CONFIG = {
           {/* Main Tab Navigation */}
           <div className="flex items-center gap-2 p-1.5 bg-neutral-900/80 border border-white/[0.08] rounded-2xl backdrop-blur-md overflow-x-auto">
             {[
-              { id: "exams", label: "🎯 Ensayos Concretos (Simulacros)", icon: "🎯" },
-              { id: "curriculum", label: "📚 Temario 2026 (13 Subtemas)", icon: "📚" },
-              { id: "parametric", label: "🎲 Generador SymPy", icon: "🎲" },
+              { id: "exams", label: `🎯 Ensayos Concretos (Simulacros)`, icon: "🎯" },
+              { id: "curriculum", label: `📚 Temario 2026 (${paesSubtopicsList.length} Subtemas)`, icon: "📚" },
+              ...( ["M1", "M2"].includes(paesActiveSubject || "M1")
+                ? [{ id: "parametric", label: "🎲 Generador SymPy", icon: "🎲" }]
+                : []
+              ),
               { id: "fsrs", label: "🧠 Memoria FSRS v4.5", icon: "🧠" },
             ].map((tab) => (
               <button
