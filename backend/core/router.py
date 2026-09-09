@@ -230,21 +230,19 @@ def execute_with_router(task_type: str, system_prompt: str, user_prompt: str, re
     return _try_api_fallback(task_type, system_prompt, user_prompt, response_model)
 
 
-def _is_lm_studio_reachable() -> bool:
-    """Quick TCP check (2s) — is LM Studio listening? Avoids 60s timeout waste."""
+def _is_lm_studio_reachable(timeout: float = 0.2) -> bool:
+    """Quick TCP check (0.2s) — is LM Studio listening? Avoids timeout waste."""
     import socket
     from urllib.parse import urlparse
     base_url = os.getenv("LM_STUDIO_BASE_URL", "http://127.0.0.1:1234/v1")
     parsed = urlparse(base_url)
     host = parsed.hostname or "127.0.0.1"
     port = parsed.port or 1234
-    for candidate in [host, "127.0.0.1", "localhost"]:
-        try:
-            with socket.create_connection((candidate, port), timeout=2):
-                return True
-        except (OSError, TimeoutError):
-            continue
-    return False
+    try:
+        with socket.create_connection((host, port), timeout=timeout):
+            return True
+    except (OSError, TimeoutError):
+        return False
 
 
 def _try_lm_studio_with_retry(

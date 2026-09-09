@@ -43,6 +43,9 @@ def get_client() -> OpenAI:
 def _get_active_lm_model(client: OpenAI) -> str:
     """Detects active non-embedding model loaded in LM Studio, fallback to local-model."""
     try:
+        from core.router import _is_lm_studio_reachable
+        if not _is_lm_studio_reachable():
+            return "local-model"
         models = client.models.list()
         chat_models = [m.id for m in models.data if "embed" not in m.id.lower()]
         if chat_models:

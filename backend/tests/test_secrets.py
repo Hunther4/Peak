@@ -65,7 +65,7 @@ class TestLazyAIClient:
 
         client = core.ai.get_client()
         assert client.api_key == "lm-studio"
-        assert "localhost:1234/v1" in str(client.base_url)
+        assert "127.0.0.1:1234/v1" in str(client.base_url) or "localhost:1234/v1" in str(client.base_url)
 
 
 class TestLazyRouterKeys:
